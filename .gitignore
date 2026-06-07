@@ -21,6 +21,7 @@ env/
 # Generated figures and reports
 figures/generated/
 reports/
+/*.png
 
 # Large/private data
 data/raw/

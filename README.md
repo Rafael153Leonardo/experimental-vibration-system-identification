@@ -131,3 +131,6 @@ This public repository intentionally avoids publishing the full raw development 
 
 See `docs/SOURCE_MAPPING.md` for a trace from the original TCC files to the
 organized public repository.
+
+See `docs/EXPERIMENTAL_NARRATIVE.md` for the narrative behind the original
+`testes.py` scratch file and the `definitivo.ipynb` analysis notebook.
