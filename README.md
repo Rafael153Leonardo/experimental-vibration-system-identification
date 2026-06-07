@@ -105,15 +105,15 @@ envelope_r_squared
 ```
 
 Curated figures from the original research workflow are available in
-`figures/main` and `figures/advanced`.
+`figures/main`, `figures/sensor` and `figures/advanced`.
 
-| Signal | FFT | CWT |
+| Noisy vs filtered signal | FFT | Global physical fit |
 | --- | --- | --- |
-| ![Signal](figures/main/01_signal.png) | ![FFT](figures/main/02_fft.png) | ![CWT](figures/main/03_cwt.png) |
+| ![Noisy vs filtered signal](figures/main/01_noisy_vs_filtered_signal.png) | ![FFT](figures/main/02_fft.png) | ![Global physical fit](figures/advanced/duffing_global_envelope_fit.png) |
 
-| Hilbert envelope | DWT decomposition | SINDy |
+| Sensor nonlinearity | HAVOK | PINN |
 | --- | --- | --- |
-| ![Hilbert envelope](figures/main/04_hilbert_envelope.png) | ![DWT decomposition](figures/main/06_dwt_decomposition.png) | ![SINDy](figures/advanced/sindy_identification.png) |
+| ![Sensor nonlinearity](figures/sensor/sensor_nonlinearity_fit.png) | ![HAVOK](figures/advanced/havok_reconstruction.png) | ![PINN](figures/advanced/pinn_inverse_problem.png) |
 
 ## Data Formats
 
