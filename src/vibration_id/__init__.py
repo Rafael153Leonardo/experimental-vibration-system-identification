@@ -7,5 +7,7 @@ __all__ = [
     "damping",
     "wavelet_analysis",
     "synthetic",
+    "sindy_model",
+    "havok",
+    "pinn",
 ]
-

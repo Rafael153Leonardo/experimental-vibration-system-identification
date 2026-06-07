@@ -58,6 +58,14 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
+For advanced methods:
+
+```bash
+pip install -r requirements-advanced.txt
+python scripts\run_advanced_analysis.py
+python scripts\run_advanced_analysis.py --run-pinn
+```
+
 ## Baseline Pipeline
 
 1. Load a CSV and normalize columns to `time_s` and `signal`.
@@ -113,7 +121,7 @@ Advanced modules are included for:
 
 - SINDy oscillator identification;
 - Hankel/SVD/HAVOK analysis;
-- PINN-based parameter refinement.
+- PINN-based parameter refinement with trainable `mu`, `alpha` and `k/m`.
 
 These methods may require extra dependencies listed in `requirements-advanced.txt`.
 

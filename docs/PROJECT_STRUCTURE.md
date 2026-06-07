@@ -14,6 +14,7 @@ damping.py            Hilbert envelope and exponential damping fit
 wavelet_analysis.py   CWT, DWT energy, dominant mode reconstruction
 sindy_model.py        optional SINDy oscillator identification
 havok.py              Hankel matrix, SVD and HAVOK identification
+pinn.py               two-stage PINN with trainable physical parameters
 synthetic.py          synthetic damped oscillator generation
 plotting.py           figure writers used by scripts
 ```
@@ -31,4 +32,3 @@ plotting.py           figure writers used by scripts
 
 Keep notebooks output-light and call functions from `src/vibration_id` instead
 of redefining long code blocks in each notebook.
-

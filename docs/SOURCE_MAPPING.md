@@ -35,7 +35,7 @@ tests/                   smoke/regression tests
 | `Wavelets.py` | `src/vibration_id/wavelet_analysis.py` |
 | `sindy_tratado.py`, `Synd.py`, `envelope.py` | `src/vibration_id/sindy_model.py` |
 | `novo_pipeline/Hankel.py`, `novo_pipeline/SVD.py`, `novo_pipeline/HAVOK.py` | `src/vibration_id/havok.py` |
-| `novo_pipeline/Pinn.py` | documented as an advanced optional extension |
+| `novo_pipeline/Pinn.py` | `src/vibration_id/pinn.py`, `scripts/run_advanced_analysis.py` |
 | exploratory notebooks | `notebooks/README.md` with a recommended notebook sequence |
 
 ## Data Mapping
