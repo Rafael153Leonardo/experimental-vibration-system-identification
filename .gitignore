@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Generated figures and reports
+figures/generated/
+reports/
+
+# Large/private data
+data/raw/
+data/private/
+*.pth
+*.pt
+*.npz
+
+# OS
+Thumbs.db
+.DS_Store
