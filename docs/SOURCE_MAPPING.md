@@ -11,6 +11,8 @@ development history that are not useful in a public repository.
 C:\Users\rafael\TCC
 C:\Users\rafael\PycharmProjects\pythonProject3_TCC
 C:\Users\rafael
+C:\Users\rafael\Documents\arduino\AMM
+C:\Users\rafael\Downloads\TCRT5000.PDF
 ```
 
 ## Public Repository Areas
@@ -21,6 +23,9 @@ scripts/                 reproducible entry points
 data/sample/             small approved sample CSVs
 figures/main/            curated baseline figures
 figures/advanced/        SINDy, HAVOK and PINN figures
+figures/setup/           experimental rig photos
+figures/sensor/          sensor-response and residual figures
+hardware/arduino/        Arduino acquisition code
 docs/                    repository notes and data policy
 tests/                   smoke/regression tests
 ```
@@ -36,6 +41,7 @@ tests/                   smoke/regression tests
 | `sindy_tratado.py`, `Synd.py`, `envelope.py` | `src/vibration_id/sindy_model.py` |
 | `novo_pipeline/Hankel.py`, `novo_pipeline/SVD.py`, `novo_pipeline/HAVOK.py` | `src/vibration_id/havok.py` |
 | `novo_pipeline/Pinn.py` | `src/vibration_id/pinn.py`, `scripts/run_advanced_analysis.py` |
+| `Documents\arduino\AMM\AMM.ino` | `hardware/arduino/AMM.ino` |
 | exploratory notebooks | `notebooks/README.md` with a recommended notebook sequence |
 
 ## Data Mapping
@@ -67,6 +73,8 @@ an additional reproducibility option.
 | `sindy.png` | `figures/advanced/sindy_identification.png` |
 | `havok.png` | `figures/advanced/havok_reconstruction.png` |
 | `probema inverso.png` | `figures/advanced/pinn_inverse_problem.png` |
+| WhatsApp rig photos | `figures/setup/*.jpeg` |
+| sensor residual/response figures | `figures/sensor/*.png` |
 
 ## Publication Notes
 

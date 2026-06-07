@@ -19,6 +19,14 @@ synthetic.py          synthetic damped oscillator generation
 plotting.py           figure writers used by scripts
 ```
 
+## Hardware
+
+```text
+hardware/arduino/AMM.ino   Arduino Uno acquisition sketch
+figures/setup/             acquisition rig and sensor mounting photos
+figures/sensor/            sensor residual, response and phase-space figures
+```
+
 ## Recommended Notebook Story
 
 ```text

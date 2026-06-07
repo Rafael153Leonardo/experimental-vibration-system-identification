@@ -1,19 +1,167 @@
-# Experimental Narrative: testes.py and definitivo.ipynb
+# Experimental Narrative: Acquisition, Sensor Calibration and Identification
 
-This note explains the role of two original files in the project:
+The project starts with a custom data-acquisition arrangement built around a
+modified TCRT5000 reflective optical sensor, an Arduino Uno and a mechanical
+vibration target. The goal was to turn a simple reflective sensor, normally used
+as a proximity/limit detector, into an analog displacement sensor capable of
+recording the free vibration of a homemade oscillator.
 
-```text
-C:\Users\rafael\AppData\Roaming\JetBrains\PyCharm2025.2\scratches\testes.py
-C:\Users\rafael\PycharmProjects\pythonProject3_TCC\prof\definitivo.ipynb
+## 1. Data-Acquisition Arrangement
+
+The physical setup used a vertical vibrating element as the measured target and
+a fixed optical sensor aligned laterally with it. The target was a narrow purple
+ruler/strip attached to the mechanical structure. The reflective sensor and its
+conditioning circuit were mounted on a reused support plate and connected to an
+Arduino Uno, which streamed raw ADC samples to the computer.
+
+![Full acquisition rig](../figures/setup/acquisition_rig_full.jpeg)
+
+![Arduino and sensor circuit](../figures/setup/arduino_sensor_circuit.jpeg)
+
+![Sensor and moving target alignment](../figures/setup/sensor_target_alignment.jpeg)
+
+The setup was intentionally simple: the Arduino did not perform calibration or
+filtering. It only sampled the analog voltage at a fixed period and sent the raw
+integer value to the computer. This decision kept the embedded system
+deterministic and moved all calibration, filtering and modeling to Python.
+
+The acquisition sketch used in the experiment is included in the repository at
+`hardware/arduino/AMM.ino`:
+
+```cpp
+const int sensorPin = A0;
+const unsigned long Ts_us = 1000; // 1000 Hz
+
+unsigned long t0;
+unsigned long nextSampleTime;
+
+void setup() {
+  Serial.begin(2000000);
+  pinMode(sensorPin, INPUT);
+
+  ADCSRA &= ~(bit(ADPS0) | bit(ADPS1) | bit(ADPS2));
+  ADCSRA |= bit(ADPS2) | bit(ADPS0);
+
+  t0 = micros();
+  nextSampleTime = micros();
+
+  Serial.println("tempo_us,leitura_bruta");
+}
+
+void loop() {
+  unsigned long now = micros();
+
+  if ((long)(now - nextSampleTime) >= 0) {
+    int raw_value = analogRead(sensorPin);
+
+    Serial.print(now - t0);
+    Serial.print(",");
+    Serial.println(raw_value);
+
+    nextSampleTime += Ts_us;
+  }
+}
 ```
 
-## Short Narrative
+The important acquisition choices were:
 
-The project starts as a home-built vibration experiment and evolves into a
+- `A0` was used as the analog sensor input;
+- `Ts_us = 1000` fixed the sample rate at approximately `1000 Hz`;
+- `Serial.begin(2000000)` reduced serial-transfer bottlenecks;
+- the ADC prescaler was changed to `32`, reducing `analogRead` latency;
+- the output format was raw CSV: `tempo_us,leitura_bruta`.
+
+## 2. Sensor Modification and Calibration
+
+The original TCRT5000 is a reflective optical sensor with an infrared emitter
+and a phototransistor detector arranged in the same direction. In the datasheet,
+the device is specified as a reflective sensor with a nominal sensing distance
+of `12 mm`, a phototransistor output and an infrared wavelength around `950 nm`.
+
+In this project, the sensor was not used as a binary proximity switch. It was
+modified and mounted as an analog position transducer:
+
+- the optical pair was fixed relative to the moving target;
+- the target distance and alignment were adjusted mechanically;
+- the conditioning circuit was adapted for analog acquisition;
+- the raw ADC response was calibrated later in Python;
+- the sensor response was evaluated under the real geometry of the experiment,
+  not only under the ideal mirror condition used in the datasheet.
+
+This distinction matters. The datasheet curve is a controlled reference curve:
+relative collector current versus working distance, using a standardized test
+surface and specified electrical conditions. The curve recovered in this
+project is an effective response curve of the complete measurement chain:
+
+```text
+TCRT5000 + custom circuit + target material + alignment + Arduino ADC
+```
+
+## 3. Recomputing the Sensor Response with SINDy
+
+After acquiring the vibration signal, a linear SINDy model was fitted to the
+dominant mechanical dynamics. This linear model captured the main oscillator:
+position, velocity, linear stiffness and linear damping.
+
+The key idea was to subtract the linear model from the measured dynamics. In
+time domain and phase space, the remaining residual is not just random noise. It
+contains the part of the measurement that the linear oscillator cannot explain.
+That residual exposes the nonlinearity of the sensing chain.
+
+![SINDy linear model subtraction](../figures/sensor/sindy_linear_model_subtraction.png)
+
+The residual was then projected against the modeled state to estimate a static
+nonlinear correction curve `h(x)`. This produced an experimentally recovered
+sensor-response curve:
+
+![Sensor nonlinearity fit](../figures/sensor/sensor_nonlinearity_fit.png)
+
+The same residual can be inspected as a time signal, a spectrum, a phase-space
+structure and a state-space projection:
+
+![Sensor residual signature](../figures/sensor/sensor_residual_signature.png)
+
+![Sensor residual spectrum](../figures/sensor/sensor_residual_spectrum.png)
+
+![Sensor residual phase space](../figures/sensor/sensor_residual_phase_space.png)
+
+![Sensor residual projection](../figures/sensor/sensor_residual_projection.png)
+
+The comparison with the TCRT5000 datasheet is qualitative and structural, not a
+direct one-to-one voltage overlay. The datasheet shows the idealized optical
+response of the component under controlled conditions, while the recovered curve
+shows how the modified sensor behaved inside the actual experiment. The
+important result is that the computational method recovered a repeatable
+nonlinear response shape from the residual dynamics, making the sensor itself a
+modeled part of the measurement system.
+
+| Datasheet reference | Experimental reconstruction |
+| --- | --- |
+| TCRT5000 reflective optical sensor with phototransistor output | Modified TCRT5000 used as analog displacement sensor |
+| Standard curve: relative collector current versus working distance | Recovered curve: residual correction `h(x)` versus modeled state |
+| Reference distance around `12 mm` under controlled test conditions | Real target distance/alignment defined by the homemade rig |
+| Standard reflective surface in the manufacturer test circuit | Purple moving target, custom mount, custom conditioning circuit |
+| Component-level optical response | Complete measurement-chain response: optics, circuit, mechanics and ADC |
+
+## 4. From Acquisition to Physical Identification
+
+With the measurement chain characterized, the rest of the project becomes a
 complete system-identification workflow. The objective is not only to plot a
 decaying oscillation, but to transform raw measurements into a physical model
 with interpretable parameters: natural frequency, damping, nonlinear energy
 dissipation and possible Duffing stiffness.
+
+The original files reviewed for this narrative were:
+
+```text
+C:\Users\rafael\Documents\arduino\AMM\AMM.ino
+C:\Users\rafael\Downloads\TCRT5000.PDF
+C:\Users\rafael\AppData\Roaming\JetBrains\PyCharm2025.2\scratches\testes.py
+C:\Users\rafael\PycharmProjects\pythonProject3_TCC\prof\definitivo.ipynb
+```
+
+The datasheet PDF was used as an engineering reference and is not redistributed
+in this repository.
 
 The exploratory script `testes.py` is a small Matplotlib scratch file. It builds
 a two-dimensional grid, evaluates the scalar field `Z = 1 / (X^2 + Y^2)` and
