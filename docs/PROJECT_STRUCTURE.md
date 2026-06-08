@@ -12,6 +12,7 @@ preprocessing.py      offset removal, onset detection, denoising, velocity
 spectral.py           FFT, PSD, dominant frequency
 damping.py            Hilbert envelope and exponential damping fit
 wavelet_analysis.py   CWT, DWT energy, dominant mode reconstruction
+materials.py          Euler-Bernoulli beam model and material ranking
 sindy_model.py        optional SINDy oscillator identification
 havok.py              Hankel matrix, SVD and HAVOK identification
 pinn.py               two-stage PINN with trainable physical parameters
@@ -40,3 +41,6 @@ figures/sensor/            sensor residual, response and phase-space figures
 
 Keep notebooks output-light and call functions from `src/vibration_id` instead
 of redefining long code blocks in each notebook.
+
+Material metadata lives in `data/sample/material_trials.csv`; original dataset
+group notes are documented in `docs/MATERIAL_DATASETS.md`.

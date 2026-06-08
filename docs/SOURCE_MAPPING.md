@@ -38,6 +38,7 @@ tests/                   smoke/regression tests
 | `fft.py` | `src/vibration_id/spectral.py` |
 | `Hilbert.py` | `src/vibration_id/damping.py` |
 | `Wavelets.py` | `src/vibration_id/wavelet_analysis.py` |
+| `euler bernoulli.py` | `src/vibration_id/materials.py`, `scripts/classify_material_euler_bernoulli.py` |
 | `sindy_tratado.py`, `Synd.py`, `envelope.py` | `src/vibration_id/sindy_model.py` |
 | `novo_pipeline/Hankel.py`, `novo_pipeline/SVD.py`, `novo_pipeline/HAVOK.py` | `src/vibration_id/havok.py` |
 | `novo_pipeline/Pinn.py` | `src/vibration_id/pinn.py`, `scripts/run_advanced_analysis.py` |
@@ -55,6 +56,7 @@ an additional reproducibility option.
 | `Dataset_sensor\inox\dados_calibrados_01.csv` | `data/sample/sample_inox_raw_calibrated.csv` |
 | `Resultados_Finais_Sincronizados\sinc_dados_calibrados_15.csv` | `data/sample/sample_inox_synchronized.csv` |
 | `novo_pipeline\relatorio_ruido_tcc.csv` | `data/sample/noise_summary.csv` |
+| original material folder labels and Euler-Bernoulli geometry | `data/sample/material_trials.csv`, `docs/MATERIAL_DATASETS.md` |
 | synthetic damped oscillator | `data/synthetic/synthetic_damped_oscillator.csv` |
 
 ## Figure Mapping

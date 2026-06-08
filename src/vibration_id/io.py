@@ -13,6 +13,8 @@ TIME_CANDIDATES = (
     "Second",
     "tempo_corrigido",
     "tempo_fixed_str",
+    "tempo_num",
+    "x-axis",
     "t",
     "tempo",
     "tempo_us",
@@ -21,11 +23,15 @@ TIME_CANDIDATES = (
 SIGNAL_CANDIDATES = (
     "signal",
     "x",
+    "x_svd_limpo",
+    "x_original",
     "posicao_mm_cent",
     "posicao_mm",
     "Volt",
     "volt",
+    "volt_num",
     "volt_fixed_str",
+    "1",
     "amplitude",
 )
 
@@ -77,7 +83,13 @@ def load_signal_csv(
 
     if time_unit == "auto":
         if "us" in t_name.lower():
-            t = t / 1_000_000.0
+            dt = np.nanmedian(np.diff(np.sort(t))) if len(t) > 1 else 0.0
+            if np.nanmax(np.abs(t)) > 10_000.0 or dt > 10.0:
+                t = t / 1_000_000.0
+        elif len(t) > 1:
+            dt = np.nanmedian(np.diff(np.sort(t)))
+            if dt > 10.0:
+                t = t / 1_000_000.0
     elif time_unit in {"us", "microsecond", "microseconds"}:
         t = t / 1_000_000.0
     elif time_unit not in {"s", "second", "seconds"}:
@@ -101,4 +113,3 @@ def save_signal_csv(data: pd.DataFrame, path: str | Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     data.to_csv(path, index=False)
-

@@ -10,4 +10,5 @@ __all__ = [
     "sindy_model",
     "havok",
     "pinn",
+    "materials",
 ]

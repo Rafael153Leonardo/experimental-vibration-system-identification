@@ -8,6 +8,7 @@ O projeto combina:
 - FFT e PSD para estimativa de frequencias dominantes;
 - transformada de Hilbert para envoltoria e amortecimento;
 - wavelets/DWT/CWT para filtragem, multirresolucao e escalogramas;
+- modelo de viga Euler-Bernoulli para estimativa de material a partir da frequencia natural;
 - SINDy para identificacao de modelos dinamicos;
 - SVD/HAVOK e PINN como extensoes avancadas.
 
@@ -83,6 +84,33 @@ python scripts\run_advanced_analysis.py
 python scripts\run_advanced_analysis.py --run-pinn
 ```
 
+For material estimation with the Euler-Bernoulli cantilever model:
+
+```bash
+python scripts\classify_material_euler_bernoulli.py --frequency-hz 7.06
+```
+
+The same script can extract the dominant frequency from a CSV:
+
+```bash
+python scripts\classify_material_euler_bernoulli.py --csv data\sample\sample_vibration_18hz.csv
+```
+
+For the metadata-driven material study:
+
+```bash
+python scripts\run_material_study.py
+```
+
+This uses `data/sample/material_trials.csv` and avoids applying the plastic-ruler
+geometry to inox samples unless the inox beam thickness is documented.
+
+For auditing all original raw CSV files by FFT:
+
+```bash
+python scripts\audit_raw_fft.py --root C:\Users\rafael\PycharmProjects\pythonProject3_TCC --fmin 1 --fmax 80 --no-denoise
+```
+
 ## Baseline Pipeline
 
 1. Load a CSV and normalize columns to `time_s` and `signal`.
@@ -92,6 +120,7 @@ python scripts\run_advanced_analysis.py --run-pinn
 5. Estimate dominant frequency with FFT.
 6. Fit Hilbert envelope with an exponential model.
 7. Generate a CWT scalogram.
+8. Estimate material class from the extracted frequency with Euler-Bernoulli.
 
 ## Example Output
 
@@ -106,6 +135,25 @@ envelope_r_squared
 
 Curated figures from the original research workflow are available in
 `figures/main`, `figures/sensor` and `figures/advanced`.
+
+The public material-study metadata is available in
+`data/sample/material_trials.csv`; notes about the original material folders are
+in `docs/MATERIAL_DATASETS.md`. The raw-folder FFT audit is summarized in
+`docs/RAW_FFT_AUDIT.md`.
+
+## Final Material Results
+
+| Context | Frequency | Geometry used | Effective Young modulus | Observation |
+| --- | ---: | --- | ---: | --- |
+| Plastic ruler reference | `7.060 Hz` | `L=0.300 m`, `h=2.33 mm`, `b=25 mm`, `rho=1050 kg/m3` | `2.992 GPa` | Compatible with acrylic, PVC or polystyrene ranges. |
+| Inox ruler, raw sample | `4.976 Hz` | `L=0.270 m`, `h=1.50 mm`, `b=20 mm`, `rho=7850 kg/m3` | `17.592 GPa` | Effective stiffness of the complete setup with a paper target at the tip. |
+| Inox ruler, synchronized sample | `4.976 Hz` | `L=0.270 m`, `h=1.50 mm`, `b=20 mm`, `rho=7850 kg/m3` | `17.591 GPa` | Reproduces the raw inox result after synchronization. |
+| Baseline 18 Hz sample | `18.724 Hz` | material and geometry not documented | n/a | Used for signal-analysis validation, not material classification. |
+
+The inox setup used a paper target attached to the tip with approximate
+dimensions `35 mm x 25 mm x 0.3 mm`. Because its mass was not measured, the
+Euler-Bernoulli result is reported as an effective stiffness estimate of the
+experimental assembly, not as a direct chemical-composition estimate.
 
 | Noisy vs filtered signal | FFT | Global physical fit |
 | --- | --- | --- |
@@ -139,6 +187,7 @@ Advanced modules are included for:
 - SINDy oscillator identification;
 - Hankel/SVD/HAVOK analysis;
 - PINN-based parameter refinement with trainable `mu`, `alpha` and `k/m`.
+- Euler-Bernoulli material classification from extracted natural frequency.
 
 These methods may require extra dependencies listed in `requirements-advanced.txt`.
 
@@ -149,5 +198,6 @@ This public repository intentionally avoids publishing the full raw development 
 See `docs/SOURCE_MAPPING.md` for a trace from the original TCC files to the
 organized public repository.
 
-See `docs/EXPERIMENTAL_NARRATIVE.md` for the narrative behind the original
-`testes.py` scratch file and the `definitivo.ipynb` analysis notebook.
+See `docs/EXPERIMENTAL_NARRATIVE.md` for the technical narrative of the
+hardware setup, sensor calibration and final system-identification workflow,
+written as the author's project description.

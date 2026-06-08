@@ -1,18 +1,21 @@
-# Experimental Narrative: Acquisition, Sensor Calibration and Identification
+# Narrativa Tecnica: Aquisicao Experimental, Calibracao do Sensor e Identificacao do Sistema
 
-The project starts with a custom data-acquisition arrangement built around a
-modified TCRT5000 reflective optical sensor, an Arduino Uno and a mechanical
-vibration target. The goal was to turn a simple reflective sensor, normally used
-as a proximity/limit detector, into an analog displacement sensor capable of
-recording the free vibration of a homemade oscillator.
+Este projeto nasceu de um arranjo experimental caseiro para medir vibracoes
+mecanicas e transformar o sinal adquirido em parametros fisicos interpretaveis.
+Construi a bancada, adaptei o sensor optico, adquiri os dados com Arduino e
+desenvolvi o pipeline computacional em Python para filtragem, identificacao de
+sistemas e ajuste de modelo fisico.
 
-## 1. Data-Acquisition Arrangement
+O objetivo principal foi partir de um sinal bruto real e chegar a uma descricao
+quantitativa do sistema: frequencia natural, amortecimento, resposta nao linear
+do sensor e modelo dinamico aproximado do oscilador.
 
-The physical setup used a vertical vibrating element as the measured target and
-a fixed optical sensor aligned laterally with it. The target was a narrow purple
-ruler/strip attached to the mechanical structure. The reflective sensor and its
-conditioning circuit were mounted on a reused support plate and connected to an
-Arduino Uno, which streamed raw ADC samples to the computer.
+## 1. Arranjo Experimental de Aquisicao
+
+A bancada foi montada com uma estrutura mecanica simples, uma lamina/regua
+vibrante e um alvo optico fixado na ponta do sistema. O deslocamento do alvo foi
+medido lateralmente por um sensor refletivo TCRT5000 modificado, conectado a um
+Arduino Uno.
 
 ![Full acquisition rig](../figures/setup/acquisition_rig_full.jpeg)
 
@@ -20,13 +23,22 @@ Arduino Uno, which streamed raw ADC samples to the computer.
 
 ![Sensor and moving target alignment](../figures/setup/sensor_target_alignment.jpeg)
 
-The setup was intentionally simple: the Arduino did not perform calibration or
-filtering. It only sampled the analog voltage at a fixed period and sent the raw
-integer value to the computer. This decision kept the embedded system
-deterministic and moved all calibration, filtering and modeling to Python.
+Usei o Arduino apenas como sistema de aquisicao. Ele nao aplicava calibracao,
+filtragem ou conversao para deslocamento. A placa lia o valor analogico bruto do
+sensor, registrava o tempo em microssegundos e enviava os dados pela serial no
+formato CSV. Toda a interpretacao do sinal foi feita depois em Python.
 
-The acquisition sketch used in the experiment is included in the repository at
-`hardware/arduino/AMM.ino`:
+Essa escolha deixou a etapa embarcada simples e deterministica. O Arduino ficou
+responsavel por amostrar o sensor de forma regular, enquanto o computador ficou
+responsavel por tratar ruido, sincronizar sinais, estimar frequencias e ajustar
+modelos.
+
+## 2. Codigo de Aquisicao no Arduino
+
+O codigo usado no Arduino esta salvo em `hardware/arduino/AMM.ino`. A rotina
+usa a entrada analogica `A0`, define um periodo de amostragem de `1000 us`
+aproximadamente equivalente a `1000 Hz`, acelera a leitura do ADC e envia duas
+colunas: `tempo_us` e `leitura_bruta`.
 
 ```cpp
 const int sensorPin = A0;
@@ -63,61 +75,61 @@ void loop() {
 }
 ```
 
-The important acquisition choices were:
+As decisoes principais dessa etapa foram:
 
-- `A0` was used as the analog sensor input;
-- `Ts_us = 1000` fixed the sample rate at approximately `1000 Hz`;
-- `Serial.begin(2000000)` reduced serial-transfer bottlenecks;
-- the ADC prescaler was changed to `32`, reducing `analogRead` latency;
-- the output format was raw CSV: `tempo_us,leitura_bruta`.
+- usar o canal analogico `A0` para capturar a resposta continua do sensor;
+- trabalhar com `Ts_us = 1000`, mantendo a amostragem em torno de `1000 Hz`;
+- usar `Serial.begin(2000000)` para reduzir gargalo de transmissao;
+- alterar o prescaler do ADC para diminuir a latencia de `analogRead`;
+- salvar o dado bruto para preservar a informacao original do experimento.
 
-## 2. Sensor Modification and Calibration
+## 3. Modificacao e Calibracao do Sensor TCRT5000
 
-The original TCRT5000 is a reflective optical sensor with an infrared emitter
-and a phototransistor detector arranged in the same direction. In the datasheet,
-the device is specified as a reflective sensor with a nominal sensing distance
-of `12 mm`, a phototransistor output and an infrared wavelength around `950 nm`.
+O TCRT5000 e um sensor optico refletivo composto por um emissor infravermelho e
+um fototransistor. No uso comum, ele costuma atuar como detector de proximidade
+ou de contraste. Neste projeto eu o usei de outra forma: como transdutor analogico
+para acompanhar o deslocamento de um alvo vibrante.
 
-In this project, the sensor was not used as a binary proximity switch. It was
-modified and mounted as an analog position transducer:
+Para isso, modifiquei o uso original do sensor:
 
-- the optical pair was fixed relative to the moving target;
-- the target distance and alignment were adjusted mechanically;
-- the conditioning circuit was adapted for analog acquisition;
-- the raw ADC response was calibrated later in Python;
-- the sensor response was evaluated under the real geometry of the experiment,
-  not only under the ideal mirror condition used in the datasheet.
+- posicionei o par optico em relacao ao alvo movel;
+- ajustei mecanicamente distancia e alinhamento;
+- adaptei o circuito de condicionamento para leitura analogica;
+- usei o Arduino para registrar a tensao bruta;
+- recalculei a curva efetiva de resposta em Python usando os dados reais.
 
-This distinction matters. The datasheet curve is a controlled reference curve:
-relative collector current versus working distance, using a standardized test
-surface and specified electrical conditions. The curve recovered in this
-project is an effective response curve of the complete measurement chain:
+A curva do datasheet representa uma condicao idealizada: corrente relativa do
+fototransistor em funcao da distancia, usando superficie e circuito de teste
+padronizados. A curva que obtive no projeto nao e a curva isolada do componente.
+Ela representa a resposta efetiva da cadeia completa de medicao:
 
 ```text
-TCRT5000 + custom circuit + target material + alignment + Arduino ADC
+TCRT5000 + circuito modificado + alvo real + alinhamento mecanico + ADC do Arduino
 ```
 
-## 3. Recomputing the Sensor Response with SINDy
+Essa diferenca e importante porque o experimento real inclui geometria,
+refletividade do alvo, montagem, ruido eletrico e limitacoes da aquisicao.
 
-After acquiring the vibration signal, a linear SINDy model was fitted to the
-dominant mechanical dynamics. This linear model captured the main oscillator:
-position, velocity, linear stiffness and linear damping.
+## 4. Reconstrucao Computacional da Resposta do Sensor
 
-The key idea was to subtract the linear model from the measured dynamics. In
-time domain and phase space, the remaining residual is not just random noise. It
-contains the part of the measurement that the linear oscillator cannot explain.
-That residual exposes the nonlinearity of the sensing chain.
+Depois de adquirir o sinal de vibracao, ajustei primeiro um modelo linear para a
+dinamica mecanica dominante. Esse modelo descreve a parte principal do
+oscilador: posicao, velocidade, rigidez linear e amortecimento linear.
+
+Em seguida, subtrai o comportamento linear identificado do sinal medido. A parte
+restante nao foi tratada apenas como ruido. Analisei esse residuo no tempo e no
+espaco de fase para separar a dinamica mecanica principal da nao linearidade
+introduzida pela cadeia de medicao.
 
 ![SINDy linear model subtraction](../figures/sensor/sindy_linear_model_subtraction.png)
 
-The residual was then projected against the modeled state to estimate a static
-nonlinear correction curve `h(x)`. This produced an experimentally recovered
-sensor-response curve:
+Com essa estrategia, usei o residuo do modelo linear para recuperar uma correcao
+nao linear associada ao sensor. A curva experimental `h(x)` representa como a
+resposta medida se desvia do modelo linear esperado.
 
 ![Sensor nonlinearity fit](../figures/sensor/sensor_nonlinearity_fit.png)
 
-The same residual can be inspected as a time signal, a spectrum, a phase-space
-structure and a state-space projection:
+Tambem analisei a assinatura do residuo por diferentes perspectivas:
 
 ![Sensor residual signature](../figures/sensor/sensor_residual_signature.png)
 
@@ -127,160 +139,106 @@ structure and a state-space projection:
 
 ![Sensor residual projection](../figures/sensor/sensor_residual_projection.png)
 
-The comparison with the TCRT5000 datasheet is qualitative and structural, not a
-direct one-to-one voltage overlay. The datasheet shows the idealized optical
-response of the component under controlled conditions, while the recovered curve
-shows how the modified sensor behaved inside the actual experiment. The
-important result is that the computational method recovered a repeatable
-nonlinear response shape from the residual dynamics, making the sensor itself a
-modeled part of the measurement system.
+A comparacao com o datasheet do TCRT5000 foi feita de forma estrutural e
+qualitativa. O datasheet fornece a curva optica padrao do componente; a minha
+reconstrucao fornece a curva efetiva do sensor dentro da bancada real.
 
-| Datasheet reference | Experimental reconstruction |
+| Datasheet TCRT5000 | Curva reconstruida no experimento |
 | --- | --- |
-| TCRT5000 reflective optical sensor with phototransistor output | Modified TCRT5000 used as analog displacement sensor |
-| Standard curve: relative collector current versus working distance | Recovered curve: residual correction `h(x)` versus modeled state |
-| Reference distance around `12 mm` under controlled test conditions | Real target distance/alignment defined by the homemade rig |
-| Standard reflective surface in the manufacturer test circuit | Purple moving target, custom mount, custom conditioning circuit |
-| Component-level optical response | Complete measurement-chain response: optics, circuit, mechanics and ADC |
+| Componente optico em condicao padrao de teste | Cadeia completa de medicao montada na bancada |
+| Corrente relativa do fototransistor versus distancia | Correcao residual `h(x)` versus estado modelado |
+| Superficie refletiva padronizada | Alvo real usado no sistema vibrante |
+| Geometria controlada pelo fabricante | Distancia e alinhamento definidos pela montagem |
+| Resposta optica do componente | Resposta efetiva: optica, circuito, mecanica e ADC |
 
-## 4. From Acquisition to Physical Identification
+## 5. Pipeline de Identificacao
 
-With the measurement chain characterized, the rest of the project becomes a
-complete system-identification workflow. The objective is not only to plot a
-decaying oscillation, but to transform raw measurements into a physical model
-with interpretable parameters: natural frequency, damping, nonlinear energy
-dissipation and possible Duffing stiffness.
-
-The original files reviewed for this narrative were:
+Com a aquisicao e a resposta do sensor caracterizadas, organizei o pipeline para
+transformar os CSVs brutos em resultados fisicos. O fluxo principal foi:
 
 ```text
-C:\Users\rafael\Documents\arduino\AMM\AMM.ino
-C:\Users\rafael\Downloads\TCRT5000.PDF
-C:\Users\rafael\AppData\Roaming\JetBrains\PyCharm2025.2\scratches\testes.py
-C:\Users\rafael\PycharmProjects\pythonProject3_TCC\prof\definitivo.ipynb
+dados brutos
+  -> deteccao do inicio da vibracao
+  -> correcao de tempo e offset
+  -> inspecao visual dos sinais
+  -> filtragem e reconstrucao por SVD
+  -> estimativa de frequencia por FFT
+  -> identificacao por SINDy
+  -> ajuste de envoltoria por Hilbert
+  -> simulacao por EDO
+  -> otimizacao global dos parametros
 ```
 
-The datasheet PDF was used as an engineering reference and is not redistributed
-in this repository.
+O notebook `definitivo.ipynb` concentrou a etapa final dessa analise. Nele, os
+sinais sincronizados foram limpos, comparados e usados para ajustar modelos
+dinamicos progressivamente mais estruturados.
 
-The exploratory script `testes.py` is a small Matplotlib scratch file. It builds
-a two-dimensional grid, evaluates the scalar field `Z = 1 / (X^2 + Y^2)` and
-draws contour lines. This script is not the core vibration pipeline; its value is
-as a plotting prototype. It tests how contour levels behave around a strong
-central singularity and can be interpreted as a visual experiment for scalar
-fields, energy landscapes or cost-function surfaces.
+## 6. Preparacao dos Dados
 
-The notebook `definitivo.ipynb` is the main technical narrative. It connects the
-experimental data to a sequence of increasingly structured models: first the
-signals are cleaned and synchronized, then SVD is used to remove noise, then
-SINDy is used to discover candidate governing equations, and finally a
-phenomenological oscillator is fitted by numerical optimization.
+No inicio da analise, carreguei os CSVs sincronizados e detectei o inicio da
+oscilacao pelo maior salto de derivada. A partir desse ponto, cada sinal foi
+deslocado para iniciar em `t = 0`.
 
-## Role of testes.py
+Depois apliquei correcoes basicas:
 
-`testes.py` performs four operations:
+- zeragem do eixo de tempo;
+- remocao do offset do sinal;
+- salvamento dos arquivos corrigidos;
+- comparacao visual entre repeticoes experimentais.
 
-1. Imports `matplotlib` and `numpy`.
-2. Creates a dense `300 x 300` grid in the interval `[-1, 1]`.
-3. Computes `Z = 1 / (X^2 + Y^2)`.
-4. Draws contour lines with `ax.contour`.
+Essa etapa foi importante para garantir que a identificacao nao fosse feita
+sobre sinais desalinhados ou com deslocamento DC artificial.
 
-Technically, this is a visualization test rather than an identification script.
-The function has a singularity at the origin, so the contour plot concentrates
-high values near the center and produces wider bands farther away. This makes it
-useful as a quick check of Matplotlib contour behavior, but it should not be
-presented as evidence for the vibration model.
+## 7. Reconstrucao por SVD
 
-The best way to describe it in the project is:
+Para reduzir ruido sem destruir a estrutura dinamica, usei uma abordagem baseada
+em matriz de trajetoria e decomposicao SVD. A serie temporal foi reorganizada em
+janelas, decomposta em valores singulares e reconstruida com os componentes mais
+relevantes.
+
+Na execucao principal, usei:
 
 ```text
-Exploratory contour-plot scratch used to test scalar-field visualization before
-building richer figures for the vibration analysis.
+janela L = 100
+componentes mantidos = [0, 1]
 ```
 
-The figure generated from this scratch is included as:
+A reconstrucao gerou a coluna `x_svd_limpo`, usada como entrada mais limpa para
+as etapas de identificacao.
 
-![Contour scalar field test](../figures/advanced/contour_scalar_field_test.png)
+## 8. Identificacao por SINDy e Modelo Duffing
 
-## Role of definitivo.ipynb
+Com o sinal suavizado, preparei os estados de posicao e velocidade para aplicar
+SINDy. O objetivo foi descobrir uma equacao candidata para o oscilador a partir
+dos dados, sem impor manualmente todos os termos desde o inicio.
 
-`definitivo.ipynb` is the final experimental notebook. It has 22 cells and
-organizes the work into these phases.
-
-### 1. Raw Data Preparation
-
-The notebook starts by loading synchronized oscilloscope-style CSV files and
-detecting the start of the oscillation by the largest derivative jump. In the
-captured execution, 9 files were processed and the oscillation was shifted to
-start at `t = 0`.
-
-Next, each signal is corrected:
-
-- time is zeroed;
-- signal offset is removed;
-- corrected files are saved into a dedicated folder.
-
-The notebook reports 9 corrected files, including `sinc_sinc_scope_04.csv`
-through `sinc_sinc_scope_10.csv` and two validation files.
-
-### 2. Visual Inspection
-
-The corrected signals are plotted in grouped figures. This stage is important
-because it checks whether the preprocessing produced comparable trajectories
-before any model is trained or fitted.
-
-### 3. SVD Denoising
-
-The notebook then applies a Hankel/SVD-style reconstruction. The core function
-builds a windowed trajectory matrix, decomposes it with SVD and reconstructs the
-signal using selected components.
-
-The execution used:
-
-```text
-window L = 100
-components kept = [0, 1]
-```
-
-The estimated removed noise was approximately:
-
-```text
-0.0401 to 0.0467
-```
-
-This creates the column `x_svd_limpo`, which becomes the cleaner input for the
-identification steps.
-
-### 4. SINDy and Duffing Discovery
-
-After SVD cleaning, the notebook prepares multiple trajectories for PySINDy. It
-constructs state vectors from position and velocity and fits sparse polynomial
-models.
-
-The first relevant discovery is a Duffing-style candidate:
+Um dos modelos identificados apresentou estrutura compativel com um oscilador
+tipo Duffing:
 
 ```text
 (x)' = 1.000 v
 (v)' = -20.285 -13892.495 x -0.508 v + 1.132 x^2 -0.214 x v + 4.082 x^3
 ```
 
-Two SINDy configurations are then compared:
+Tambem comparei configuracoes diferentes de SINDy:
 
 ```text
 Model A R2 = 0.99973
 Model B R2 = 0.99974
 ```
 
-The notebook concludes that the cubic stiffness term is small compared with the
-linear stiffness term. The practical interpretation is that the experiment is
-predominantly a linear-stiffness oscillator, while nonlinear effects appear more
-clearly in the damping/energy decay than in the spring term.
+A interpretacao fisica foi que a rigidez linear domina a resposta, enquanto os
+termos nao lineares aparecem de forma mais relevante na dissipacao de energia e
+na correcao residual do sensor.
 
-### 5. Smoothed Derivatives
+## 9. Derivadas Suavizadas e Amortecimento Nao Linear
 
-Because velocity estimates are sensitive to noise, the notebook uses
-Savitzky-Golay smoothing before differentiating. This improves the phase-space
-representation and helps isolate damping terms:
+Como a velocidade estimada por derivada numerica e sensivel a ruido, usei
+suavizacao Savitzky-Golay antes de calcular derivadas. Isso melhorou o retrato
+no espaco de fase e permitiu avaliar termos de amortecimento dependentes do
+estado.
+
+Os termos estimados nessa etapa foram:
 
 ```text
 v term:     -0.05324
@@ -288,13 +246,13 @@ x v term:    0.12095
 x^2 v term: -0.23613
 ```
 
-This is a key transition in the analysis: the model stops being only a
-frequency estimate and starts describing how the oscillation loses energy.
+Essa parte da analise mostrou que a perda de energia do sistema nao precisava
+ser descrita apenas por amortecimento linear.
 
-### 6. Envelope-Based Parameter Fit
+## 10. Ajuste da Envoltoria por Hilbert
 
-The Hilbert envelope is used to fit a nonlinear damping law. The notebook
-reports:
+Usei a transformada de Hilbert para extrair a envoltoria do sinal amortecido e
+ajustar uma lei de decaimento. O ajuste retornou:
 
 ```text
 gamma = 0.35865
@@ -302,23 +260,24 @@ eta   = 0.07722
 R0    = 4.6580
 ```
 
-Here, `gamma` represents linear damping and `eta` represents nonlinear damping.
-This gives a physically interpretable description of the decay curve, not just a
-black-box regression.
+Nesse modelo, `gamma` representa o amortecimento linear e `eta` representa uma
+componente de amortecimento nao linear. Isso transformou a curva de decaimento
+em parametros fisicos interpretaveis.
 
-### 7. ODE Model and Phase Calibration
+## 11. Simulacao por EDO e Otimizacao Global
 
-The notebook then moves from discovered equations to direct simulation. The
-oscillator is written as a first-order ODE system and integrated numerically.
-
-The model used in the final methodology is:
+Na etapa final, escrevi o oscilador como um sistema de EDOs de primeira ordem:
 
 ```text
 x' = v
 v' = -omega_n^2 x - beta x^3 - (gamma + eta x^2) v
 ```
 
-A fine calibration step estimates:
+Depois integrei numericamente esse modelo e ajustei os parametros para minimizar
+o erro entre a simulacao e o sinal experimental. Tambem refinei fase e frequencia
+para alinhar a trajetoria simulada com os dados reais.
+
+A calibracao fina indicou:
 
 ```text
 phase phi      = -0.0484 rad
@@ -326,78 +285,53 @@ omega          = 117.6848 rad/s
 omega^2        = 13849.72
 ```
 
-This step aligns the simulated trajectory with the experimental phase, which is
-essential because a small frequency mismatch creates a large visual error over
-many cycles.
-
-### 8. Global Optimization
-
-The final model-updating step minimizes the mean squared error between the
-experimental displacement and the ODE simulation. The notebook uses
-Nelder-Mead-style optimization and physical penalties to keep parameters
-consistent.
-
-The final reported parameters are:
+O ajuste global retornou:
 
 ```text
-x0     = 4.2833 mm
-v0     = -6.8996 mm/s
-gamma  = 0.3629
-eta    = 0.0809
+x0      = 4.2833 mm
+v0      = -6.8996 mm/s
+gamma   = 0.3629
+eta     = 0.0809
 omega^2 = 13907.74
-beta   = -6.91
+beta    = -6.91
 ```
 
-The organized figure below shows the final global fit, combining the noisy
-signal, SVD-smoothed signal, optimized numerical model and analytical envelope:
+A figura organizada abaixo resume esse resultado, comparando o sinal ruidoso, o
+sinal suavizado por SVD, o modelo numerico otimizado e a envoltoria analitica:
 
 ![Duffing global envelope fit](../figures/advanced/duffing_global_envelope_fit.png)
 
-The interpretation is consistent with the SINDy investigation:
+## 12. Interpretacao Final
 
-- the linear stiffness dominates the response;
-- nonlinear damping is relevant to the envelope decay;
-- the Duffing cubic stiffness term is small in the final global fit;
-- using real initial velocity improves the time-domain match.
+O resultado principal do projeto foi a construcao de uma cadeia completa de
+identificacao experimental:
 
-## Project Story
+- montei a bancada de aquisicao;
+- adaptei o TCRT5000 para uso analogico;
+- registrei dados reais com Arduino;
+- tratei ruido, offset e sincronizacao em Python;
+- usei FFT para estimar frequencia dominante;
+- usei SVD para reconstruir sinais mais limpos;
+- usei SINDy para investigar a estrutura dinamica;
+- usei Hilbert para estimar amortecimento;
+- usei simulacao por EDO para ajustar um modelo fisico global.
 
-The two files show the project moving from plotting experiments to model-based
-identification.
+A conclusao tecnica e que o sistema medido se comporta principalmente como um
+oscilador de rigidez linear, mas a dissipacao de energia e a cadeia de medicao
+apresentam efeitos nao lineares relevantes. A reconstrucao residual permitiu
+separar parte da nao linearidade do sensor da dinamica mecanica principal,
+tornando o sensor um elemento modelado do experimento, e nao apenas uma fonte de
+dado bruto.
 
-`testes.py` is a visualization scratch: it verifies how contour plots represent
-a scalar field with strong gradients. It is useful as a plotting experiment, but
-not as the main engineering result.
+## 13. Fontes Originais Usadas
 
-`definitivo.ipynb` is the central experimental notebook. It builds a complete
-pipeline:
-
-```text
-raw CSVs
-  -> event detection
-  -> time and offset correction
-  -> visual inspection
-  -> SVD denoising
-  -> SINDy equation discovery
-  -> Duffing/nonlinearity investigation
-  -> Hilbert envelope fitting
-  -> ODE simulation
-  -> global parameter optimization
-```
-
-The strongest technical conclusion is that the measured system behaves mainly
-as a linear oscillator in stiffness, with damping behavior that benefits from a
-nonlinear term. In portfolio language, the notebook demonstrates signal
-processing, numerical linear algebra, sparse system identification and
-physics-informed model calibration applied to a real home-built experiment.
-
-## Suggested Public Description
+Os arquivos originais usados para organizar esta narrativa foram:
 
 ```text
-I built a vibration-analysis pipeline from a home experiment, starting with raw
-CSV signals and ending with an interpretable oscillator model. The workflow
-includes event detection, offset correction, SVD denoising, SINDy equation
-discovery, Hilbert-envelope damping estimation and ODE-based global parameter
-optimization. The final analysis indicates a predominantly linear stiffness
-response with relevant nonlinear damping in the energy decay.
+C:\Users\rafael\Documents\arduino\AMM\AMM.ino
+C:\Users\rafael\Downloads\TCRT5000.PDF
+C:\Users\rafael\PycharmProjects\pythonProject3_TCC\prof\definitivo.ipynb
 ```
+
+O datasheet do TCRT5000 foi usado como referencia tecnica e nao e redistribuido
+neste repositorio.
