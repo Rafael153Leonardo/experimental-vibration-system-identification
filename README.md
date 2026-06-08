@@ -193,11 +193,5 @@ These methods may require extra dependencies listed in `requirements-advanced.tx
 
 ## Notes
 
-This public repository intentionally avoids publishing the full raw development tree. It includes curated real samples, real project figures and synthetic data for comparison.
-
-See `docs/SOURCE_MAPPING.md` for a trace from the original TCC files to the
-organized public repository.
-
 See `docs/EXPERIMENTAL_NARRATIVE.md` for the technical narrative of the
-hardware setup, sensor calibration and final system-identification workflow,
-written as the author's project description.
+hardware setup, sensor calibration and final system-identification workflow.
