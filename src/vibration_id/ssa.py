@@ -62,7 +62,7 @@ def build_ensemble(
     common = np.linspace(t_min, t_max, m)
 
     matrix = np.zeros((m, len(signals)), dtype=float)
-    for j, (t, x) in enumerate(zip(times, signals)):
+    for j, (t, x) in enumerate(zip(times, signals, strict=True)):
         f = interp1d(np.asarray(t, dtype=float), np.asarray(x, dtype=float), kind="linear", fill_value="extrapolate")
         matrix[:, j] = f(common)
 

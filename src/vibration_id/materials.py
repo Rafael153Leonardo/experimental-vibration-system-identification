@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 FIRST_CANTILEVER_MODE_BETA = 1.87510407
 
 # Rayleigh effective-mass fraction of a uniform cantilever for the first mode.

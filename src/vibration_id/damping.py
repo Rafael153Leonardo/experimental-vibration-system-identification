@@ -121,4 +121,3 @@ def quality_factor_half_power(
     if bandwidth <= 0:
         raise ValueError("Non-positive half-power bandwidth.")
     return float(f_r / bandwidth), f_r, bandwidth
-

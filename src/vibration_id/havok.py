@@ -39,4 +39,3 @@ def identify_havok(t: np.ndarray, S: np.ndarray, Vt: np.ndarray, *, rank: int = 
     A = AB[:, :-1]
     B = AB[:, -1][:, None]
     return A, B, z_state, u_state
-

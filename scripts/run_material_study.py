@@ -8,21 +8,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from vibration_id.io import load_signal_csv
 from vibration_id.materials import (
     BeamGeometry,
     rank_materials_by_frequency,
     rank_materials_by_young,
     young_modulus_from_frequency,
 )
-from vibration_id.preprocessing import crop_from_onset, remove_dc_offset, wavelet_denoise
+from vibration_id.pipeline import load_clean_signal
 from vibration_id.spectral import dominant_frequency
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run a metadata-driven Euler-Bernoulli material study."
-    )
+    parser = argparse.ArgumentParser(description="Run a metadata-driven Euler-Bernoulli material study.")
     parser.add_argument(
         "--metadata",
         type=Path,
@@ -67,15 +64,8 @@ def parse_optional_float(value: str | None) -> float | None:
 
 
 def extract_frequency(path: Path, args: argparse.Namespace) -> float:
-    data = load_signal_csv(path, center_signal=False)
-    t = data["time_s"].to_numpy()
-    x = data["signal"].to_numpy()
-    x = remove_dc_offset(x, mode="tail")
-    if not args.no_crop:
-        t, x, _ = crop_from_onset(t, x, safety_samples=5)
-    if not args.no_denoise:
-        x = wavelet_denoise(x, wavelet="db8", level=2)
-    return dominant_frequency(t, x, fmin=args.fmin, fmax=args.fmax)
+    cleaned = load_clean_signal(path, crop=not args.no_crop, denoise=not args.no_denoise)
+    return dominant_frequency(cleaned.t, cleaned.clean, fmin=args.fmin, fmax=args.fmax)
 
 
 def format_matches(matches: list[object], attr: str, top_n: int) -> str:
@@ -140,9 +130,7 @@ def analyze_row(row: dict[str, str], args: argparse.Namespace) -> dict[str, str]
         tip_mass_kg=tip_mass_kg,
     )
     young_matches = rank_materials_by_young(young_pa)
-    frequency_matches = rank_materials_by_frequency(
-        geometry, frequency_hz=frequency_hz, tip_mass_kg=tip_mass_kg
-    )
+    frequency_matches = rank_materials_by_frequency(geometry, frequency_hz=frequency_hz, tip_mass_kg=tip_mass_kg)
 
     result["tip_mass_kg"] = f"{tip_mass_kg:.6e}" if tip_mass_kg else ""
     result["estimated_young_gpa"] = f"{young_pa / 1e9:.6f}"

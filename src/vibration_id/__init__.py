@@ -16,4 +16,5 @@ __all__ = [
     "global_fit",
     "sensor_residual",
     "beam_modes",
+    "pipeline",
 ]

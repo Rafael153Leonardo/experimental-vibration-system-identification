@@ -65,4 +65,3 @@ def save_scalogram_plot(t, freqs, power, path: str | Path) -> None:
     plt.tight_layout()
     plt.savefig(path, dpi=180)
     plt.close()
-

@@ -56,9 +56,13 @@ tests/                   Basic regression tests
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -e .
 python scripts\run_basic_analysis.py
 ```
+
+Installing the package with `pip install -e .` puts `vibration_id` on the path;
+the scripts also add `src/` to `sys.path` so they run from a clean checkout
+without installing.
 
 The default workflow uses the real sample in
 `data/sample/sample_vibration_18hz.csv`. Synthetic data is also available as a
