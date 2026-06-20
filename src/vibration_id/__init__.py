@@ -15,4 +15,5 @@ __all__ = [
     "ssa",
     "global_fit",
     "sensor_residual",
+    "beam_modes",
 ]

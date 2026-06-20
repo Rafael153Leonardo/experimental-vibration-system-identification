@@ -147,24 +147,25 @@ in `docs/MATERIAL_DATASETS.md`. The raw-folder FFT audit is summarized in
 | Context | Frequency | Geometry used | Effective Young modulus | Observation |
 | --- | ---: | --- | ---: | --- |
 | Plastic ruler reference | `7.060 Hz` | `L=0.300 m`, `h=2.33 mm`, `b=25 mm`, `rho=1050 kg/m3` | `2.992 GPa` | Compatible with acrylic, PVC or polystyrene ranges. |
-| Inox ruler, raw sample | `4.982 Hz` | `L=0.300 m`, `h=1.00 mm`, `b=25 mm`, `rho=7850 kg/m3` | `61.4 GPa` | Effective stiffness of the complete setup with a paper target at the tip. |
-| Inox ruler, synchronized sample | `4.982 Hz` | `L=0.300 m`, `h=1.00 mm`, `b=25 mm`, `rho=7850 kg/m3` | `61.4 GPa` | Reproduces the raw inox result after synchronization. |
+| Inox ruler, raw sample | `4.982 Hz` | `L=0.300 m`, `h=0.55 mm`, `b=25 mm`, `rho=7850 kg/m3` | `205.3 GPa` | Classifies as stainless / carbon steel (190-210 GPa). |
+| Inox ruler, synchronized sample | `4.982 Hz` | `L=0.300 m`, `h=0.55 mm`, `b=25 mm`, `rho=7850 kg/m3` | `205.3 GPa` | Reproduces the raw inox result after synchronization. |
 | Baseline 18 Hz sample | `18.737 Hz` | material and geometry not documented | n/a | Used for signal-analysis validation, not material classification. |
 
-The inox geometry was corrected to the measured ruler dimensions
-(`L=0.300 m`, `h=1.00 mm`, `b=25 mm`); the previously documented `h=1.50 mm` was
-wrong, which alone inflated the discrepancy (`E ~ 1/h^2`). With the right
-thickness the estimate rises from `17.6 GPa` to `61.4 GPa`.
+The inox case is fully resolved, and the path there is a good worked example of
+separating boundary condition from material. The earlier `~17.6 GPa` came from a
+wrong thickness (`1.5 mm`); a forced-vibration experiment then drove the same
+ruler at its first four modes (`~5.0 / 31.2 / 86.8 / 173.5 Hz`). Those modes are
+*not* integer harmonics — they follow the clamped-free ladder `beta_n^2`
+(`1 : 6.27 : 17.5 : 34.4`) — and the measured ratios match that ideal ladder
+within `~1%`. That proves an **ideal clamp** with no significant tip mass
+(a soft clamp or a tip mass would push the higher-mode ratios *up*, not onto the
+ideal line), which ruled out the boundary as the cause.
 
-It is still well below bulk steel (`~200 GPa`), and this is genuinely physical,
-not a data or dimension error: a *bare* `0.30 m` x `1.0 mm` steel cantilever
-would resonate near `9.06 Hz`, but the rig measures `4.98 Hz` (~55% of it), i.e.
-the assembly behaves as if it had `~3.3x` more effective mass/compliance. A
-paper tip (~0.2 g) cannot explain that — reconciling to `200 GPa` would need
-`~33 g` at the tip — so the residual gap is dominated by **clamp compliance**
-(a non-ideal built-in support), which the ideal Euler-Bernoulli cantilever does
-not capture. The inox number is therefore an effective stiffness of the
-assembly, not a bulk-material modulus. See `docs/ORIGINAL_CODE_AUDIT.md`.
+With the boundary exonerated, the only free parameter left was geometry. A
+micrometer reading of the blade gave `h = 0.55 mm` (the `1 mm` on the ruler is
+nominal). With the true thickness the first-mode inverse gives `E ~ 205 GPa`,
+landing squarely in the stainless / carbon-steel range. See
+`docs/ORIGINAL_CODE_AUDIT.md` and `src/vibration_id/beam_modes.py`.
 
 | Noisy vs filtered signal | FFT | Global physical fit |
 | --- | --- | --- |
