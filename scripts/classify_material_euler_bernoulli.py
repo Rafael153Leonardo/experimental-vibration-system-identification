@@ -58,6 +58,12 @@ def parse_args() -> argparse.Namespace:
         default=1050.0,
         help="Density used for the inverse Young modulus estimate.",
     )
+    parser.add_argument(
+        "--tip-mass-kg",
+        type=float,
+        default=0.0,
+        help="Mass attached at the free tip (e.g. a paper target). 0 disables the correction.",
+    )
     parser.add_argument("--top-n", type=int, default=5, help="Number of material matches to print.")
     parser.add_argument("--no-crop", action="store_true", help="Do not crop from detected onset.")
     parser.add_argument("--no-denoise", action="store_true", help="Do not apply wavelet denoising.")
@@ -98,6 +104,7 @@ def main() -> None:
         geometry,
         frequency_hz=frequency_hz,
         density_kg_m3=args.density_kg_m3,
+        tip_mass_kg=args.tip_mass_kg,
     )
     young_matches = rank_materials_by_young(young_pa)
     frequency_matches = rank_materials_by_frequency(geometry, frequency_hz=frequency_hz)
@@ -112,6 +119,8 @@ def main() -> None:
         f"b={geometry.width_m:.4f} m"
     )
     print(f"inverse_density_kg_m3: {args.density_kg_m3:.1f}")
+    if args.tip_mass_kg > 0:
+        print(f"tip_mass_kg: {args.tip_mass_kg:.6f}")
     print(f"estimated_young_gpa: {young_pa / 1e9:.3f}")
     print()
     print("Closest matches by inverse Young modulus:")
