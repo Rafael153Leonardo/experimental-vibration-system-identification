@@ -39,9 +39,7 @@ def test_global_duffing_recovers_frequency():
     omega0_sq, beta, gamma, eta = 400.0, 5.0, 0.3, 0.05
     t, x = _simulate(omega0_sq, beta, gamma, eta)
 
-    fit = fit_global_duffing(
-        t, x, gamma=gamma, eta=eta, omega0_sq_guess=380.0, beta_guess=0.0, fit_seconds=8.0
-    )
+    fit = fit_global_duffing(t, x, gamma=gamma, eta=eta, omega0_sq_guess=380.0, beta_guess=0.0, fit_seconds=8.0)
 
     assert np.isclose(fit.omega0_sq, omega0_sq, rtol=0.05)
     assert fit.mse < 1e-2

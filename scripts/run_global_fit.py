@@ -25,8 +25,7 @@ from vibration_id.global_fit import (
     nonlinear_envelope,
     simulate_duffing,
 )
-from vibration_id.io import load_signal_csv
-from vibration_id.preprocessing import crop_from_onset, remove_dc_offset, wavelet_denoise
+from vibration_id.pipeline import load_clean_signal
 from vibration_id.spectral import dominant_frequency
 
 
@@ -53,11 +52,8 @@ def main() -> None:
     args = parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
-    data = load_signal_csv(args.csv, center_signal=False)
-    t = data["time_s"].to_numpy()
-    x_raw = remove_dc_offset(data["signal"].to_numpy(), mode="tail")
-    t, x_raw, onset = crop_from_onset(t, x_raw, safety_samples=5)
-    x_clean = wavelet_denoise(x_raw, wavelet="db8", level=2)
+    cleaned = load_clean_signal(args.csv)
+    t, x_raw, x_clean, onset = cleaned.t, cleaned.raw, cleaned.clean, cleaned.onset
 
     # Stage 1: nonlinear envelope -> gamma, eta
     envelope = hilbert_envelope(x_clean)

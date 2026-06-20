@@ -18,8 +18,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from vibration_id.io import load_signal_csv
-from vibration_id.preprocessing import crop_from_onset, remove_dc_offset, velocity_savgol, wavelet_denoise
+from vibration_id.pipeline import decimate, load_clean_signal
+from vibration_id.preprocessing import velocity_savgol, wavelet_denoise
 from vibration_id.sensor_residual import (
     evaluate_residual_surface,
     fit_residual_surface,
@@ -46,22 +46,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def downsample(t: np.ndarray, x: np.ndarray, max_samples: int) -> tuple[np.ndarray, np.ndarray]:
-    if max_samples <= 0 or len(t) <= max_samples:
-        return t, x
-    idx = np.linspace(0, len(t) - 1, max_samples).astype(int)
-    return t[idx], x[idx]
-
-
 def main() -> None:
     args = parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
-    data = load_signal_csv(args.csv, center_signal=False)
-    t = data["time_s"].to_numpy()
-    x = remove_dc_offset(data["signal"].to_numpy(), mode="tail")
-    t, x, onset = crop_from_onset(t, x, safety_samples=5)
-    t, x = downsample(t, x, args.max_samples)
+    cleaned = load_clean_signal(args.csv, denoise=False)
+    t, x = decimate(cleaned.t, cleaned.raw, args.max_samples)
+    onset = cleaned.onset
     dt = float(np.median(np.diff(t)))
 
     q = wavelet_denoise(x, wavelet="db8", level=2)

@@ -105,4 +105,3 @@ def compute_psd(
         detrend="constant",
     )
     return freqs, psd
-

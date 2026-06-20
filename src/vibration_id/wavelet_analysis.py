@@ -63,4 +63,3 @@ def reconstruct_dominant_mode(
     selected[idx] = coeffs[idx]
     rec = pywt.waverec(selected, wavelet)[: len(x)]
     return rec, labels[idx], energy
-

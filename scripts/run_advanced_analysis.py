@@ -11,9 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from vibration_id.havok import havok_svd, identify_havok
-from vibration_id.io import load_signal_csv
 from vibration_id.pinn import PinnTrainingConfig, pinn_available, predict, train_two_stage_pinn
-from vibration_id.preprocessing import crop_from_onset, remove_dc_offset, velocity_savgol, wavelet_denoise
+from vibration_id.pipeline import decimate, load_clean_signal
 from vibration_id.sindy_model import fit_linear_sindy, physical_params_from_sindy, state_from_position
 
 
@@ -39,23 +38,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pinn-stage2-epochs", type=int, default=150, help="PINN nonlinear-stage epochs.")
     parser.add_argument("--pinn-max-points", type=int, default=900, help="Maximum PINN training samples.")
     return parser.parse_args()
-
-
-def downsample(t: np.ndarray, x: np.ndarray, max_samples: int) -> tuple[np.ndarray, np.ndarray]:
-    if max_samples <= 0 or len(t) <= max_samples:
-        return t, x
-    idx = np.linspace(0, len(t) - 1, max_samples).astype(int)
-    return t[idx], x[idx]
-
-
-def load_clean_signal(path: Path) -> tuple[np.ndarray, np.ndarray, int]:
-    data = load_signal_csv(path, center_signal=False)
-    t = data["time_s"].to_numpy()
-    x = data["signal"].to_numpy()
-    x = remove_dc_offset(x, mode="tail")
-    t, x, onset = crop_from_onset(t, x, safety_samples=5)
-    x = wavelet_denoise(x, wavelet="db8", level=2)
-    return t, x, onset
 
 
 def save_havok_figures(out: Path, t: np.ndarray, singular_values: np.ndarray, forcing: np.ndarray) -> None:
@@ -114,8 +96,9 @@ def main() -> None:
     args = parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
-    t, x, onset = load_clean_signal(args.csv)
-    t_small, x_small = downsample(t, x, args.max_samples)
+    cleaned = load_clean_signal(args.csv)
+    t, x, onset = cleaned.t, cleaned.clean, cleaned.onset
+    t_small, x_small = decimate(t, x, args.max_samples)
     print("Advanced vibration analysis")
     print(f"source: {args.csv}")
     print(f"onset_index: {onset}")
