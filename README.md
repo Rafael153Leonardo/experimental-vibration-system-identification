@@ -8,9 +8,10 @@ O projeto combina:
 - FFT e PSD para estimativa de frequencias dominantes;
 - transformada de Hilbert para envoltoria e amortecimento;
 - wavelets/DWT/CWT para filtragem, multirresolucao e escalogramas;
-- modelo de viga Euler-Bernoulli para estimativa de material a partir da frequencia natural;
+- modelo de viga Euler-Bernoulli (com correcao opcional de massa de ponta) para estimativa de material;
 - SINDy para identificacao de modelos dinamicos;
-- SVD/HAVOK e PINN como extensoes avancadas.
+- identificacao de dinamica Duffing + mapa de saida do sensor `h(q)`;
+- SVD de ensemble, HAVOK e PINN como extensoes avancadas.
 
 ## Motivation
 
@@ -155,6 +156,12 @@ dimensions `35 mm x 25 mm x 0.3 mm`. Because its mass was not measured, the
 Euler-Bernoulli result is reported as an effective stiffness estimate of the
 experimental assembly, not as a direct chemical-composition estimate.
 
+A tip-mass correction is now available (`--tip-mass-kg`, or estimated from the
+`tip_*` columns in `run_material_study.py`), but for the inox case the paper
+target (~0.2 g) is negligible next to the effective beam mass (~15 g), so it
+barely changes the result. The ~10x gap to bulk steel is dominated by clamp
+compliance, not tip mass; see `docs/ORIGINAL_CODE_AUDIT.md`.
+
 | Noisy vs filtered signal | FFT | Global physical fit |
 | --- | --- | --- |
 | ![Noisy vs filtered signal](figures/main/01_noisy_vs_filtered_signal.png) | ![FFT](figures/main/02_fft.png) | ![Global physical fit](figures/advanced/duffing_global_envelope_fit.png) |
@@ -186,12 +193,43 @@ Advanced modules are included for:
 
 - SINDy oscillator identification;
 - Hankel/SVD/HAVOK analysis;
+- ensemble-SVD reconstruction across repeated experiments (`ssa.py`);
+- free-Duffing dynamics plus a polynomial sensor output map `h(q)` (`nonlinear_id.py`);
+- 3-stage global Duffing fit with nonlinear damping (`global_fit.py`);
+- linear-model residual analysis for the sensor nonlinearity (`sensor_residual.py`);
 - PINN-based parameter refinement with trainable `mu`, `alpha` and `k/m`.
 - Euler-Bernoulli material classification from extracted natural frequency.
 
+The Duffing + sensor identification and the global Duffing fit are reproducible
+from the sample data:
+
+```bash
+python scripts\run_sensor_identification.py
+python scripts\run_global_fit.py
+python scripts\run_sensor_residual.py
+```
+
+`run_global_fit.py` regenerates the `duffing_global_envelope_fit` figure and
+recovers the nonlinear-damping parameters from `docs/EXPERIMENTAL_NARRATIVE.md`
+section 11 (`gamma ~ 0.353`, `eta ~ 0.078`, `f0 ~ 18.72 Hz`).
+
 These methods may require extra dependencies listed in `requirements-advanced.txt`.
+
+## Reproducibility And Provenance
+
+Some headline figures come from the original private research workflow. Their
+mapping to the original scripts, and which ones are reproducible from this
+public code, is documented in:
+
+- `docs/ORIGINAL_CODE_AUDIT.md` — audit of the original scripts/notebooks
+  (what is trustworthy vs. buggy) and how it was ported here;
+- `docs/FIGURE_PROVENANCE.md` — figure-by-figure origin and reproducibility.
 
 ## Notes
 
 See `docs/EXPERIMENTAL_NARRATIVE.md` for the technical narrative of the
 hardware setup, sensor calibration and final system-identification workflow.
+
+## License
+
+Released under the MIT License. See `LICENSE`.

@@ -40,7 +40,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-n", type=int, default=3, help="Number of matches to store.")
     parser.add_argument("--no-crop", action="store_true", help="Do not crop from detected onset.")
     parser.add_argument("--no-denoise", action="store_true", help="Do not apply wavelet denoising.")
+    parser.add_argument(
+        "--tip-density-kg-m3",
+        type=float,
+        default=800.0,
+        help="Assumed density of the paper tip target, used to estimate tip mass from tip_* dimensions.",
+    )
     return parser.parse_args()
+
+
+def tip_mass_from_row(row: dict[str, str], tip_density_kg_m3: float) -> float:
+    """Estimate the tip mass from documented tip dimensions, or 0 if absent."""
+
+    h = parse_optional_float(row.get("tip_height_m"))
+    w = parse_optional_float(row.get("tip_width_m"))
+    th = parse_optional_float(row.get("tip_thickness_m"))
+    if h is None or w is None or th is None:
+        return 0.0
+    return float(tip_density_kg_m3 * h * w * th)
 
 
 def parse_optional_float(value: str | None) -> float | None:
@@ -115,14 +132,19 @@ def analyze_row(row: dict[str, str], args: argparse.Namespace) -> dict[str, str]
         thickness_m=thickness_m,
         width_m=width_m if width_m is not None else 0.025,
     )
+    tip_mass_kg = tip_mass_from_row(row, args.tip_density_kg_m3)
     young_pa = young_modulus_from_frequency(
         geometry,
         frequency_hz=frequency_hz,
         density_kg_m3=density_kg_m3,
+        tip_mass_kg=tip_mass_kg,
     )
     young_matches = rank_materials_by_young(young_pa)
-    frequency_matches = rank_materials_by_frequency(geometry, frequency_hz=frequency_hz)
+    frequency_matches = rank_materials_by_frequency(
+        geometry, frequency_hz=frequency_hz, tip_mass_kg=tip_mass_kg
+    )
 
+    result["tip_mass_kg"] = f"{tip_mass_kg:.6e}" if tip_mass_kg else ""
     result["estimated_young_gpa"] = f"{young_pa / 1e9:.6f}"
     result["closest_young_matches"] = format_matches(young_matches, "candidate", args.top_n)
     result["closest_frequency_matches"] = format_matches(frequency_matches, "candidate", args.top_n)

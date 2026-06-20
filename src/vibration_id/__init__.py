@@ -11,4 +11,8 @@ __all__ = [
     "havok",
     "pinn",
     "materials",
+    "nonlinear_id",
+    "ssa",
+    "global_fit",
+    "sensor_residual",
 ]
