@@ -122,16 +122,23 @@ espessura antes documentada (`1.5 mm`) estava errada; como `E ∝ 1/h²`, isso
 sozinho inflava a discrepância. Com `h=1 mm` o E sobe de `17,6 GPa` para
 `61,4 GPa`.
 
-**Resultado honesto:** mesmo assim fica abaixo do aço maciço (~200 GPa), e isso é
-físico, não erro de dado nem de dimensão. Uma viga de aço **nua** de
-`0.30 m × 1.0 mm` ressoaria a ~`9,06 Hz`, mas a bancada mede `4,98 Hz` (~55%),
-ou seja, o conjunto se comporta como se tivesse ~3,3× mais massa/compliance
-efetiva. O alvo de papel (~0,2 g) não explica isso (reconciliar 200 GPa exigiria
-~33 g na ponta), então o gap residual é dominado por **compliance do engaste**
-(suporte não perfeitamente engastado), que a viga Euler-Bernoulli ideal não
-captura. Por isso o inox é reportado como "rigidez efetiva do conjunto". A
-correção de massa de ponta segue sendo um recurso válido para montagens em que a
-massa adicionada é relevante.
+**Resolução (engaste isolado por experimento forçado):** a mesma régua foi
+excitada nos 4 primeiros modos (`~5,0 / 31,2 / 86,8 / 173,5 Hz`,
+`Dataset_sensor/forcado`). Os modos de uma viga engastada **não** são harmônicos
+inteiros — seguem a escada `βₙ²` (`1 : 6,27 : 17,5 : 34,4`). As razões medidas
+batem com essa escada ideal dentro de **~1%**, o que prova **engaste ideal** e
+ausência de massa de ponta relevante (um engaste mole ou uma massa de ponta
+empurrariam as razões dos modos altos para *cima* do ideal; elas caem sobre a
+linha ideal). Diagnóstico no módulo `beam_modes.py`.
+
+Com o contorno descartado, sobrou a geometria: o micrômetro deu **h = 0,55 mm**
+(o "1 mm" da régua é nominal). Com a espessura real, o inverso do 1º modo dá
+**E ≈ 205 GPa**, dentro da faixa de aço inox/carbono (190–210 GPa). **Correção de
+rumo honesta:** a hipótese anterior ("compliance do engaste domina o gap")
+**estava errada** — o experimento forçado, projetado justamente para isolar o
+engaste, mostrou que o engaste é ideal e que o erro era a espessura. A correção
+de massa de ponta segue sendo um recurso válido para montagens em que a massa
+adicionada é relevante.
 
 ### E. `fatorQ.py` / `euler bernoulli.py` — `input()` e caminhos absolutos
 
