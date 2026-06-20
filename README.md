@@ -147,20 +147,24 @@ in `docs/MATERIAL_DATASETS.md`. The raw-folder FFT audit is summarized in
 | Context | Frequency | Geometry used | Effective Young modulus | Observation |
 | --- | ---: | --- | ---: | --- |
 | Plastic ruler reference | `7.060 Hz` | `L=0.300 m`, `h=2.33 mm`, `b=25 mm`, `rho=1050 kg/m3` | `2.992 GPa` | Compatible with acrylic, PVC or polystyrene ranges. |
-| Inox ruler, raw sample | `4.976 Hz` | `L=0.270 m`, `h=1.50 mm`, `b=20 mm`, `rho=7850 kg/m3` | `17.592 GPa` | Effective stiffness of the complete setup with a paper target at the tip. |
-| Inox ruler, synchronized sample | `4.976 Hz` | `L=0.270 m`, `h=1.50 mm`, `b=20 mm`, `rho=7850 kg/m3` | `17.591 GPa` | Reproduces the raw inox result after synchronization. |
-| Baseline 18 Hz sample | `18.724 Hz` | material and geometry not documented | n/a | Used for signal-analysis validation, not material classification. |
+| Inox ruler, raw sample | `4.982 Hz` | `L=0.300 m`, `h=1.00 mm`, `b=25 mm`, `rho=7850 kg/m3` | `61.4 GPa` | Effective stiffness of the complete setup with a paper target at the tip. |
+| Inox ruler, synchronized sample | `4.982 Hz` | `L=0.300 m`, `h=1.00 mm`, `b=25 mm`, `rho=7850 kg/m3` | `61.4 GPa` | Reproduces the raw inox result after synchronization. |
+| Baseline 18 Hz sample | `18.737 Hz` | material and geometry not documented | n/a | Used for signal-analysis validation, not material classification. |
 
-The inox setup used a paper target attached to the tip with approximate
-dimensions `35 mm x 25 mm x 0.3 mm`. Because its mass was not measured, the
-Euler-Bernoulli result is reported as an effective stiffness estimate of the
-experimental assembly, not as a direct chemical-composition estimate.
+The inox geometry was corrected to the measured ruler dimensions
+(`L=0.300 m`, `h=1.00 mm`, `b=25 mm`); the previously documented `h=1.50 mm` was
+wrong, which alone inflated the discrepancy (`E ~ 1/h^2`). With the right
+thickness the estimate rises from `17.6 GPa` to `61.4 GPa`.
 
-A tip-mass correction is now available (`--tip-mass-kg`, or estimated from the
-`tip_*` columns in `run_material_study.py`), but for the inox case the paper
-target (~0.2 g) is negligible next to the effective beam mass (~15 g), so it
-barely changes the result. The ~10x gap to bulk steel is dominated by clamp
-compliance, not tip mass; see `docs/ORIGINAL_CODE_AUDIT.md`.
+It is still well below bulk steel (`~200 GPa`), and this is genuinely physical,
+not a data or dimension error: a *bare* `0.30 m` x `1.0 mm` steel cantilever
+would resonate near `9.06 Hz`, but the rig measures `4.98 Hz` (~55% of it), i.e.
+the assembly behaves as if it had `~3.3x` more effective mass/compliance. A
+paper tip (~0.2 g) cannot explain that — reconciling to `200 GPa` would need
+`~33 g` at the tip — so the residual gap is dominated by **clamp compliance**
+(a non-ideal built-in support), which the ideal Euler-Bernoulli cantilever does
+not capture. The inox number is therefore an effective stiffness of the
+assembly, not a bulk-material modulus. See `docs/ORIGINAL_CODE_AUDIT.md`.
 
 | Noisy vs filtered signal | FFT | Global physical fit |
 | --- | --- | --- |
