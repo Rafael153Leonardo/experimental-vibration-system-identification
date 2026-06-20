@@ -109,16 +109,29 @@ correção de massa efetiva (Rayleigh, `m_eff = 0.2427 rho A L + m_ponta`) em
 `materials.py`, disponível via `--tip-mass-kg` (CLI) e estimada das dimensões
 `tip_*` no estudo de materiais.
 
-**Importante (resultado honesto):** para o caso inox, a massa do alvo de papel
-(~0,21 g, de 35×25×0,3 mm a ~800 kg/m³) é **desprezível** frente à massa efetiva
-da viga (~15 g), então a correção quase não altera o E (17,59 → 17,88 GPa). Ou
-seja, a massa de ponta **não** explica o módulo ~10× baixo do inox. Um aço de
-`L=0.27 m, h=1.5 mm` ressoaria perto de ~17 Hz no modelo ideal, mas o medido é
-~5 Hz; isso aponta para **compliance no engaste / condição de contorno
-não-ideal** (a régua não está perfeitamente bi-engastada), não para massa de
-ponta. Por isso o README reporta o inox como "rigidez efetiva do conjunto", e
-essa leitura continua correta. A correção de massa de ponta é, ainda assim, um
-recurso válido para montagens em que a massa adicionada é relevante.
+**Proveniência dos dados (verificado):** os samples de inox do repositório são
+genuínos — `sample_inox_raw_calibrated.csv` é numericamente idêntico a
+`Dataset_sensor/inox/dados_calibrados_01.csv`. O inox é um conjunto reproduzível
+(29 + 10 arquivos, f₀ ≈ 4,98 Hz, desvio ±0,001–0,011 Hz), **não** um dado
+isolado. O `dados_perfeitos.csv` do professor (18,7 Hz) é um arquivo separado,
+usado só como baseline de sinal / ajuste Duffing — não entra na classificação do
+inox.
+
+**Geometria corrigida (foto da régua):** `L=0.300 m`, `h=1.00 mm`, `b=25 mm`. A
+espessura antes documentada (`1.5 mm`) estava errada; como `E ∝ 1/h²`, isso
+sozinho inflava a discrepância. Com `h=1 mm` o E sobe de `17,6 GPa` para
+`61,4 GPa`.
+
+**Resultado honesto:** mesmo assim fica abaixo do aço maciço (~200 GPa), e isso é
+físico, não erro de dado nem de dimensão. Uma viga de aço **nua** de
+`0.30 m × 1.0 mm` ressoaria a ~`9,06 Hz`, mas a bancada mede `4,98 Hz` (~55%),
+ou seja, o conjunto se comporta como se tivesse ~3,3× mais massa/compliance
+efetiva. O alvo de papel (~0,2 g) não explica isso (reconciliar 200 GPa exigiria
+~33 g na ponta), então o gap residual é dominado por **compliance do engaste**
+(suporte não perfeitamente engastado), que a viga Euler-Bernoulli ideal não
+captura. Por isso o inox é reportado como "rigidez efetiva do conjunto". A
+correção de massa de ponta segue sendo um recurso válido para montagens em que a
+massa adicionada é relevante.
 
 ### E. `fatorQ.py` / `euler bernoulli.py` — `input()` e caminhos absolutos
 
