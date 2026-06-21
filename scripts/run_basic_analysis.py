@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from vibration_id.damping import fit_exponential_envelope, quality_factor
-from vibration_id.io import load_signal_csv
+from vibration_id.pipeline import load_clean_signal
 from vibration_id.plotting import (
     save_envelope_plot,
     save_fft_plot,
@@ -43,17 +43,15 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
 
     if args.csv.exists():
-        data = load_signal_csv(args.csv, center_signal=False)
-        t = data["time_s"].to_numpy()
-        x = data["signal"].to_numpy()
+        cleaned = load_clean_signal(args.csv)
+        t, x_clean, onset = cleaned.t, cleaned.clean, cleaned.onset
         source = str(args.csv)
     else:
         t, x = damped_oscillator()
+        x = remove_dc_offset(x, mode="tail")
+        t, x, onset = crop_from_onset(t, x, safety_samples=5)
+        x_clean = wavelet_denoise(x, wavelet="db8", level=2)
         source = "synthetic"
-
-    x = remove_dc_offset(x, mode="tail")
-    t, x, onset = crop_from_onset(t, x, safety_samples=5)
-    x_clean = wavelet_denoise(x, wavelet="db8", level=2)
 
     f0 = dominant_frequency(t, x_clean, fmin=1.0, fmax=80.0)
     freqs, amp = compute_fft(t, x_clean)

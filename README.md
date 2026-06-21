@@ -1,197 +1,141 @@
 # Experimental Vibration System Identification
 
-Pipeline em Python para analise e identificacao de sistemas vibratorias amortecidos a partir de dados experimentais.
+[![CI](https://github.com/Rafael153Leonardo/experimental-vibration-system-identification/actions/workflows/ci.yml/badge.svg)](https://github.com/Rafael153Leonardo/experimental-vibration-system-identification/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 
-O projeto combina:
+**From a raw optical-sensor signal to interpretable physics** — a Python pipeline
+that takes vibration measurements off a homemade rig and recovers natural
+frequencies, damping, dynamic models, and even a material's Young modulus. It
+combines classical signal processing, data-driven system identification
+(SINDy / HAVOK / PINN), and physics-based beam modeling.
 
-- aquisicao e tratamento de series temporais;
-- FFT e PSD para estimativa de frequencias dominantes;
-- transformada de Hilbert para envoltoria e amortecimento;
-- wavelets/DWT/CWT para filtragem, multirresolucao e escalogramas;
-- modelo de viga Euler-Bernoulli para estimativa de material a partir da frequencia natural;
-- SINDy para identificacao de modelos dinamicos;
-- SVD/HAVOK e PINN como extensoes avancadas.
+I built the bench, adapted the sensor, acquired the data with an Arduino, and
+wrote the full analysis pipeline. This repo is the cleaned, tested, reproducible
+version of that work.
 
-## Motivation
+| Noisy vs filtered signal | FFT spectrum | Global physical fit |
+| --- | --- | --- |
+| ![Noisy vs filtered signal](figures/main/01_noisy_vs_filtered_signal.png) | ![FFT](figures/main/02_fft.png) | ![Global physical fit](figures/advanced/duffing_global_envelope_fit.png) |
 
-O objetivo e transformar dados experimentais de vibracao em parametros fisicos interpretaveis, como frequencia natural, amortecimento, fator de qualidade e modelos dinamicos aproximados.
+## Highlight — measuring a steel ruler's Young modulus from how it vibrates
 
-Este repositorio e uma versao publica e organizada de um projeto experimental caseiro. O codigo, as figuras e as amostras reais publicadas foram separados do historico bruto de desenvolvimento.
+A stainless-steel ruler in free vibration gave a fundamental of `4.98 Hz`.
+Feeding that into the Euler–Bernoulli cantilever model returned `~18 GPa` — an
+order of magnitude below steel. Instead of fudging the number, I designed a
+**forced-vibration experiment**, driving the same ruler at its first four modes
+(`~5.0 / 31.2 / 86.8 / 173.5 Hz`).
 
-## Hardware And Acquisition
+Cantilever modes are *not* integer harmonics — they follow the `beta_n^2` ladder
+(`1 : 6.27 : 17.5 : 34.4`), and that ladder is a fingerprint of the boundary
+condition, independent of the material. The measured ratios matched the ideal
+ladder within **~1%**, which proves the clamp was essentially perfect and rules
+it out as the cause (a soft clamp or a tip mass would push the higher-mode ratios
+*up*, not onto the ideal line). That left geometry: a micrometer read the blade
+at `0.55 mm` (the `1 mm` marking is nominal). With the true thickness, the inverse
+gives `E ≈ 205 GPa` — squarely stainless / carbon steel.
 
-The measurements were acquired with a modified TCRT5000 reflective optical
-sensor connected to an Arduino Uno. The Arduino sampled the raw analog signal at
-approximately `1000 Hz` and streamed `tempo_us,leitura_bruta` over serial; all
-calibration and modeling were done later in Python.
+The takeaway, and the reusable code in [`beam_modes.py`](src/vibration_id/beam_modes.py):
+**higher modes let you separate the boundary condition from the material.** The
+full investigation is in [`docs/ORIGINAL_CODE_AUDIT.md`](docs/ORIGINAL_CODE_AUDIT.md).
+
+## What's inside
+
+**Signal processing & spectral analysis**
+- Windowed FFT with sub-bin parabolic peak interpolation; Welch PSD
+- Wavelets: CWT scalograms, DWT multiresolution energy, wavelet denoising
+- Hilbert-envelope damping fits; physical quality factor `Q = 2*pi*f0/gamma` and a half-power-bandwidth estimator
+
+**Data-driven system identification**
+- SINDy — linear oscillator and free-Duffing models (with a dependency-free STLSQ)
+- HAVOK (Hankel + SVD + regression) and ensemble-SVD reconstruction
+- Physics-Informed Neural Network (PyTorch) with trainable physical parameters
+- 3-stage global Duffing fit: nonlinear envelope → phase calibration → ODE optimization
+- Sensor output map `h(q)` and linear-model residual analysis for the sensor nonlinearity
+
+**Physics-based modeling**
+- Euler–Bernoulli cantilever (forward + inverse) with a Rayleigh tip-mass correction
+- Modal-ladder analysis to separate clamp quality from material modulus
+
+**Hardware & engineering**
+- Modified TCRT5000 reflective optical sensor + Arduino Uno (~1 kHz), raw streaming over serial
+- Typed, modular package · 30 regression tests · ruff lint + format · GitHub Actions CI (3.10 / 3.12)
+
+## Quick start
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e .
+python scripts\run_basic_analysis.py
+```
+
+`pip install -e .` puts `vibration_id` on the path; the scripts also add `src/`
+to `sys.path`, so they run from a clean checkout without installing. Generated
+figures land in `figures/generated/`.
+
+```bash
+# tests
+pip install -r requirements-dev.txt && pytest -q
+
+# advanced methods (SINDy / HAVOK / PINN)
+pip install -r requirements-advanced.txt
+python scripts\run_advanced_analysis.py --run-pinn
+
+# reproducible Duffing + sensor identification and the global fit
+python scripts\run_sensor_identification.py
+python scripts\run_global_fit.py
+python scripts\run_sensor_residual.py
+
+# material study from trial metadata
+python scripts\run_material_study.py
+```
+
+## Results
+
+| Context | Frequency | Geometry | Young modulus | Verdict |
+| --- | ---: | --- | ---: | --- |
+| Plastic ruler | `7.060 Hz` | `L=0.300 m, h=2.33 mm` | `2.99 GPa` | acrylic / PVC / polystyrene range |
+| Inox ruler (raw) | `4.982 Hz` | `L=0.300 m, h=0.55 mm` | `205.3 GPa` | **stainless / carbon steel** (190–210 GPa) |
+| Inox ruler (synchronized) | `4.982 Hz` | `L=0.300 m, h=0.55 mm` | `205.3 GPa` | reproduces the raw inox result |
+| 18 Hz baseline | `18.737 Hz` | not documented | n/a | signal-analysis validation only |
+
+| Sensor nonlinearity | HAVOK reconstruction | PINN inverse problem |
+| --- | --- | --- |
+| ![Sensor nonlinearity](figures/sensor/sensor_nonlinearity_fit.png) | ![HAVOK](figures/advanced/havok_reconstruction.png) | ![PINN](figures/advanced/pinn_inverse_problem.png) |
+
+## Hardware and acquisition
+
+Measurements were acquired with a modified TCRT5000 reflective optical sensor on
+an Arduino Uno, sampling the raw analog signal at `~1000 Hz` and streaming
+`tempo_us,leitura_bruta` over serial; all calibration and modeling happen later
+in Python. The Arduino sketch is in [`hardware/arduino/AMM.ino`](hardware/arduino/AMM.ino).
 
 | Experimental rig | Sensor circuit | Sensor alignment |
 | --- | --- | --- |
 | ![Experimental rig](figures/setup/acquisition_rig_full.jpeg) | ![Arduino sensor circuit](figures/setup/arduino_sensor_circuit.jpeg) | ![Sensor alignment](figures/setup/sensor_target_alignment.jpeg) |
 
-The Arduino sketch is available at `hardware/arduino/AMM.ino`. The sensor
-calibration narrative is documented in `docs/EXPERIMENTAL_NARRATIVE.md`.
-
-## Repository Structure
-
-```text
-src/vibration_id/        Core Python package
-scripts/                 Reproducible command-line analyses
-hardware/arduino/        Arduino acquisition sketch
-data/sample/             Small public sample datasets
-data/synthetic/          Synthetic examples
-figures/main/            Curated project figures
-figures/setup/           Hardware and acquisition photos
-figures/sensor/          Sensor-response and residual analysis
-figures/generated/       Figures generated by scripts
-figures/advanced/        SINDy/HAVOK/PINN figures
-notebooks/               Optional exploratory notebooks
-docs/                    Project notes and data policy
-tests/                   Basic regression tests
-```
-
-## Quick Start
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python scripts\run_basic_analysis.py
-```
-
-The default workflow uses the real sample in
-`data/sample/sample_vibration_18hz.csv`. Synthetic data is also available as a
-fallback and for reproducible experiments.
-
-Generated figures are saved to:
-
-```text
-figures/generated/
-```
-
-For tests:
-
-```bash
-pip install -r requirements-dev.txt
-pytest -q
-```
-
-For advanced methods:
-
-```bash
-pip install -r requirements-advanced.txt
-python scripts\run_advanced_analysis.py
-python scripts\run_advanced_analysis.py --run-pinn
-```
-
-For material estimation with the Euler-Bernoulli cantilever model:
-
-```bash
-python scripts\classify_material_euler_bernoulli.py --frequency-hz 7.06
-```
-
-The same script can extract the dominant frequency from a CSV:
-
-```bash
-python scripts\classify_material_euler_bernoulli.py --csv data\sample\sample_vibration_18hz.csv
-```
-
-For the metadata-driven material study:
-
-```bash
-python scripts\run_material_study.py
-```
-
-This uses `data/sample/material_trials.csv` and avoids applying the plastic-ruler
-geometry to inox samples unless the inox beam thickness is documented.
-
-For auditing all original raw CSV files by FFT:
-
-```bash
-python scripts\audit_raw_fft.py --root C:\Users\rafael\PycharmProjects\pythonProject3_TCC --fmin 1 --fmax 80 --no-denoise
-```
-
-## Baseline Pipeline
+## Baseline pipeline
 
 1. Load a CSV and normalize columns to `time_s` and `signal`.
-2. Remove DC offset.
-3. Detect the vibration onset.
-4. Apply wavelet denoising.
-5. Estimate dominant frequency with FFT.
-6. Fit Hilbert envelope with an exponential model.
-7. Generate a CWT scalogram.
-8. Estimate material class from the extracted frequency with Euler-Bernoulli.
+2. Remove the DC offset and crop to the vibration onset.
+3. Wavelet-denoise.
+4. Estimate the dominant frequency (windowed FFT, sub-bin interpolation).
+5. Fit the Hilbert envelope and damping; compute the quality factor.
+6. Generate a CWT scalogram.
+7. Estimate the material class with the Euler–Bernoulli model.
 
-## Example Output
+The loader accepts the project's CSV variants
+(`tempo_us,posicao_mm` · `tempo_s,posicao_mm_cent` · `tempo_corrigido,volt` ·
+`Second,Volt`) and normalizes everything to `time_s,signal`.
 
-The baseline script prints metrics such as:
+## Documentation
 
-```text
-dominant_frequency_hz
-gamma
-Q
-envelope_r_squared
-```
+- [`docs/EXPERIMENTAL_NARRATIVE.md`](docs/EXPERIMENTAL_NARRATIVE.md) — hardware, sensor calibration and the identification workflow
+- [`docs/ORIGINAL_CODE_AUDIT.md`](docs/ORIGINAL_CODE_AUDIT.md) — audit of the original exploratory code and how it was ported / corrected here
+- [`docs/FIGURE_PROVENANCE.md`](docs/FIGURE_PROVENANCE.md) — figure-by-figure origin and reproducibility
+- [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) — module map
 
-Curated figures from the original research workflow are available in
-`figures/main`, `figures/sensor` and `figures/advanced`.
+## License
 
-The public material-study metadata is available in
-`data/sample/material_trials.csv`; notes about the original material folders are
-in `docs/MATERIAL_DATASETS.md`. The raw-folder FFT audit is summarized in
-`docs/RAW_FFT_AUDIT.md`.
-
-## Final Material Results
-
-| Context | Frequency | Geometry used | Effective Young modulus | Observation |
-| --- | ---: | --- | ---: | --- |
-| Plastic ruler reference | `7.060 Hz` | `L=0.300 m`, `h=2.33 mm`, `b=25 mm`, `rho=1050 kg/m3` | `2.992 GPa` | Compatible with acrylic, PVC or polystyrene ranges. |
-| Inox ruler, raw sample | `4.976 Hz` | `L=0.270 m`, `h=1.50 mm`, `b=20 mm`, `rho=7850 kg/m3` | `17.592 GPa` | Effective stiffness of the complete setup with a paper target at the tip. |
-| Inox ruler, synchronized sample | `4.976 Hz` | `L=0.270 m`, `h=1.50 mm`, `b=20 mm`, `rho=7850 kg/m3` | `17.591 GPa` | Reproduces the raw inox result after synchronization. |
-| Baseline 18 Hz sample | `18.724 Hz` | material and geometry not documented | n/a | Used for signal-analysis validation, not material classification. |
-
-The inox setup used a paper target attached to the tip with approximate
-dimensions `35 mm x 25 mm x 0.3 mm`. Because its mass was not measured, the
-Euler-Bernoulli result is reported as an effective stiffness estimate of the
-experimental assembly, not as a direct chemical-composition estimate.
-
-| Noisy vs filtered signal | FFT | Global physical fit |
-| --- | --- | --- |
-| ![Noisy vs filtered signal](figures/main/01_noisy_vs_filtered_signal.png) | ![FFT](figures/main/02_fft.png) | ![Global physical fit](figures/advanced/duffing_global_envelope_fit.png) |
-
-| Sensor nonlinearity | HAVOK | PINN |
-| --- | --- | --- |
-| ![Sensor nonlinearity](figures/sensor/sensor_nonlinearity_fit.png) | ![HAVOK](figures/advanced/havok_reconstruction.png) | ![PINN](figures/advanced/pinn_inverse_problem.png) |
-
-## Data Formats
-
-The loader supports the common formats used in the project:
-
-```text
-tempo_us,posicao_mm
-tempo_s,posicao_mm_cent
-tempo_corrigido,volt
-Second,Volt
-```
-
-All are normalized internally to:
-
-```text
-time_s,signal
-```
-
-## Advanced Methods
-
-Advanced modules are included for:
-
-- SINDy oscillator identification;
-- Hankel/SVD/HAVOK analysis;
-- PINN-based parameter refinement with trainable `mu`, `alpha` and `k/m`.
-- Euler-Bernoulli material classification from extracted natural frequency.
-
-These methods may require extra dependencies listed in `requirements-advanced.txt`.
-
-## Notes
-
-See `docs/EXPERIMENTAL_NARRATIVE.md` for the technical narrative of the
-hardware setup, sensor calibration and final system-identification workflow.
+Released under the MIT License. See [`LICENSE`](LICENSE).

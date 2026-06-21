@@ -14,7 +14,6 @@ from vibration_id.io import load_signal_csv
 from vibration_id.preprocessing import crop_from_onset, remove_dc_offset, wavelet_denoise
 from vibration_id.spectral import compute_fft, dominant_frequency, sampling_rate
 
-
 SKIP_PARTS = {".git", ".idea", ".ipynb_checkpoints", ".venv", "__pycache__"}
 
 
