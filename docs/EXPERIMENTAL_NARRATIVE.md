@@ -1,21 +1,21 @@
-# Narrativa Tecnica: Aquisicao Experimental, Calibracao do Sensor e Identificacao do Sistema
+# Technical Narrative: Experimental Acquisition, Sensor Calibration and System Identification
 
-Este projeto nasceu de um arranjo experimental caseiro para medir vibracoes
-mecanicas e transformar o sinal adquirido em parametros fisicos interpretaveis.
-Construi a bancada, adaptei o sensor optico, adquiri os dados com Arduino e
-desenvolvi o pipeline computacional em Python para filtragem, identificacao de
-sistemas e ajuste de modelo fisico.
+This project grew out of a homemade experimental setup to measure mechanical
+vibrations and turn the acquired signal into interpretable physical parameters.
+I built the bench, adapted the optical sensor, acquired the data with an Arduino,
+and developed the computational pipeline in Python for filtering, system
+identification and physical-model fitting.
 
-O objetivo principal foi partir de um sinal bruto real e chegar a uma descricao
-quantitativa do sistema: frequencia natural, amortecimento, resposta nao linear
-do sensor e modelo dinamico aproximado do oscilador.
+The main goal was to start from a real raw signal and arrive at a quantitative
+description of the system: natural frequency, damping, nonlinear sensor response
+and an approximate dynamic model of the oscillator.
 
-## 1. Arranjo Experimental de Aquisicao
+## 1. Experimental Acquisition Setup
 
-A bancada foi montada com uma estrutura mecanica simples, uma lamina/regua
-vibrante e um alvo optico fixado na ponta do sistema. O deslocamento do alvo foi
-medido lateralmente por um sensor refletivo TCRT5000 modificado, conectado a um
-Arduino Uno.
+The bench was assembled with a simple mechanical structure, a vibrating
+blade/ruler and an optical target fixed at the tip of the system. The target's
+displacement was measured laterally by a modified TCRT5000 reflective sensor
+connected to an Arduino Uno.
 
 ![Full acquisition rig](../figures/setup/acquisition_rig_full.jpeg)
 
@@ -23,22 +23,21 @@ Arduino Uno.
 
 ![Sensor and moving target alignment](../figures/setup/sensor_target_alignment.jpeg)
 
-Usei o Arduino apenas como sistema de aquisicao. Ele nao aplicava calibracao,
-filtragem ou conversao para deslocamento. A placa lia o valor analogico bruto do
-sensor, registrava o tempo em microssegundos e enviava os dados pela serial no
-formato CSV. Toda a interpretacao do sinal foi feita depois em Python.
+I used the Arduino only as an acquisition system. It did not apply any
+calibration, filtering or conversion to displacement. The board read the raw
+analog value from the sensor, recorded the time in microseconds and streamed the
+data over serial as CSV. All signal interpretation was done later in Python.
 
-Essa escolha deixou a etapa embarcada simples e deterministica. O Arduino ficou
-responsavel por amostrar o sensor de forma regular, enquanto o computador ficou
-responsavel por tratar ruido, sincronizar sinais, estimar frequencias e ajustar
-modelos.
+That choice kept the embedded stage simple and deterministic. The Arduino was
+responsible for sampling the sensor regularly, while the computer handled noise,
+signal synchronization, frequency estimation and model fitting.
 
-## 2. Codigo de Aquisicao no Arduino
+## 2. Arduino Acquisition Code
 
-O codigo usado no Arduino esta salvo em `hardware/arduino/AMM.ino`. A rotina
-usa a entrada analogica `A0`, define um periodo de amostragem de `1000 us`
-aproximadamente equivalente a `1000 Hz`, acelera a leitura do ADC e envia duas
-colunas: `tempo_us` e `leitura_bruta`.
+The code used on the Arduino is saved at `hardware/arduino/AMM.ino`. The routine
+uses analog input `A0`, sets a sampling period of `1000 us` (roughly `1000 Hz`),
+speeds up the ADC reading and streams two columns: `tempo_us` and
+`leitura_bruta`.
 
 ```cpp
 const int sensorPin = A0;
@@ -75,61 +74,61 @@ void loop() {
 }
 ```
 
-As decisoes principais dessa etapa foram:
+The main decisions at this stage were:
 
-- usar o canal analogico `A0` para capturar a resposta continua do sensor;
-- trabalhar com `Ts_us = 1000`, mantendo a amostragem em torno de `1000 Hz`;
-- usar `Serial.begin(2000000)` para reduzir gargalo de transmissao;
-- alterar o prescaler do ADC para diminuir a latencia de `analogRead`;
-- salvar o dado bruto para preservar a informacao original do experimento.
+- use analog channel `A0` to capture the sensor's continuous response;
+- work with `Ts_us = 1000`, keeping sampling around `1000 Hz`;
+- use `Serial.begin(2000000)` to reduce the transmission bottleneck;
+- change the ADC prescaler to cut `analogRead` latency;
+- save the raw data to preserve the original experimental information.
 
-## 3. Modificacao e Calibracao do Sensor TCRT5000
+## 3. Modifying and Calibrating the TCRT5000 Sensor
 
-O TCRT5000 e um sensor optico refletivo composto por um emissor infravermelho e
-um fototransistor. No uso comum, ele costuma atuar como detector de proximidade
-ou de contraste. Neste projeto eu o usei de outra forma: como transdutor analogico
-para acompanhar o deslocamento de um alvo vibrante.
+The TCRT5000 is a reflective optical sensor made of an infrared emitter and a
+phototransistor. In common use it acts as a proximity or contrast detector. In
+this project I used it differently: as an analog transducer to track the
+displacement of a vibrating target.
 
-Para isso, modifiquei o uso original do sensor:
+To that end I modified the sensor's original use:
 
-- posicionei o par optico em relacao ao alvo movel;
-- ajustei mecanicamente distancia e alinhamento;
-- adaptei o circuito de condicionamento para leitura analogica;
-- usei o Arduino para registrar a tensao bruta;
-- recalculei a curva efetiva de resposta em Python usando os dados reais.
+- positioned the optical pair relative to the moving target;
+- mechanically adjusted distance and alignment;
+- adapted the conditioning circuit for analog reading;
+- used the Arduino to record the raw voltage;
+- recomputed the effective response curve in Python from the real data.
 
-A curva do datasheet representa uma condicao idealizada: corrente relativa do
-fototransistor em funcao da distancia, usando superficie e circuito de teste
-padronizados. A curva que obtive no projeto nao e a curva isolada do componente.
-Ela representa a resposta efetiva da cadeia completa de medicao:
+The datasheet curve represents an idealized condition: relative phototransistor
+current as a function of distance, using a standardized surface and test circuit.
+The curve I obtained in the project is not the component's isolated curve. It
+represents the effective response of the complete measurement chain:
 
 ```text
-TCRT5000 + circuito modificado + alvo real + alinhamento mecanico + ADC do Arduino
+TCRT5000 + modified circuit + real target + mechanical alignment + Arduino ADC
 ```
 
-Essa diferenca e importante porque o experimento real inclui geometria,
-refletividade do alvo, montagem, ruido eletrico e limitacoes da aquisicao.
+This difference matters because the real experiment includes geometry, target
+reflectivity, mounting, electrical noise and acquisition limitations.
 
-## 4. Reconstrucao Computacional da Resposta do Sensor
+## 4. Computational Reconstruction of the Sensor Response
 
-Depois de adquirir o sinal de vibracao, ajustei primeiro um modelo linear para a
-dinamica mecanica dominante. Esse modelo descreve a parte principal do
-oscilador: posicao, velocidade, rigidez linear e amortecimento linear.
+After acquiring the vibration signal, I first fitted a linear model for the
+dominant mechanical dynamics. That model describes the main part of the
+oscillator: position, velocity, linear stiffness and linear damping.
 
-Em seguida, subtrai o comportamento linear identificado do sinal medido. A parte
-restante nao foi tratada apenas como ruido. Analisei esse residuo no tempo e no
-espaco de fase para separar a dinamica mecanica principal da nao linearidade
-introduzida pela cadeia de medicao.
+Then I subtracted the identified linear behavior from the measured signal. The
+remainder was not treated as mere noise. I analyzed that residual in time and in
+phase space to separate the main mechanical dynamics from the nonlinearity
+introduced by the measurement chain.
 
 ![SINDy linear model subtraction](../figures/sensor/sindy_linear_model_subtraction.png)
 
-Com essa estrategia, usei o residuo do modelo linear para recuperar uma correcao
-nao linear associada ao sensor. A curva experimental `h(x)` representa como a
-resposta medida se desvia do modelo linear esperado.
+With this strategy, I used the linear-model residual to recover a nonlinear
+correction associated with the sensor. The experimental curve `h(x)` represents
+how the measured response deviates from the expected linear model.
 
 ![Sensor nonlinearity fit](../figures/sensor/sensor_nonlinearity_fit.png)
 
-Tambem analisei a assinatura do residuo por diferentes perspectivas:
+I also analyzed the residual's signature from different perspectives:
 
 ![Sensor residual signature](../figures/sensor/sensor_residual_signature.png)
 
@@ -139,106 +138,105 @@ Tambem analisei a assinatura do residuo por diferentes perspectivas:
 
 ![Sensor residual projection](../figures/sensor/sensor_residual_projection.png)
 
-A comparacao com o datasheet do TCRT5000 foi feita de forma estrutural e
-qualitativa. O datasheet fornece a curva optica padrao do componente; a minha
-reconstrucao fornece a curva efetiva do sensor dentro da bancada real.
+The comparison with the TCRT5000 datasheet was done structurally and
+qualitatively. The datasheet provides the component's standard optical curve; my
+reconstruction provides the sensor's effective curve inside the real bench.
 
-| Datasheet TCRT5000 | Curva reconstruida no experimento |
+| TCRT5000 datasheet | Curve reconstructed in the experiment |
 | --- | --- |
-| Componente optico em condicao padrao de teste | Cadeia completa de medicao montada na bancada |
-| Corrente relativa do fototransistor versus distancia | Correcao residual `h(x)` versus estado modelado |
-| Superficie refletiva padronizada | Alvo real usado no sistema vibrante |
-| Geometria controlada pelo fabricante | Distancia e alinhamento definidos pela montagem |
-| Resposta optica do componente | Resposta efetiva: optica, circuito, mecanica e ADC |
+| Optical component in standard test condition | Complete measurement chain on the bench |
+| Relative phototransistor current vs. distance | Residual correction `h(x)` vs. modeled state |
+| Standardized reflective surface | Real target used in the vibrating system |
+| Manufacturer-controlled geometry | Distance and alignment set by the assembly |
+| Optical response of the component | Effective response: optics, circuit, mechanics and ADC |
 
-## 5. Pipeline de Identificacao
+## 5. Identification Pipeline
 
-Com a aquisicao e a resposta do sensor caracterizadas, organizei o pipeline para
-transformar os CSVs brutos em resultados fisicos. O fluxo principal foi:
-
-```text
-dados brutos
-  -> deteccao do inicio da vibracao
-  -> correcao de tempo e offset
-  -> inspecao visual dos sinais
-  -> filtragem e reconstrucao por SVD
-  -> estimativa de frequencia por FFT
-  -> identificacao por SINDy
-  -> ajuste de envoltoria por Hilbert
-  -> simulacao por EDO
-  -> otimizacao global dos parametros
-```
-
-O notebook `definitivo.ipynb` concentrou a etapa final dessa analise. Nele, os
-sinais sincronizados foram limpos, comparados e usados para ajustar modelos
-dinamicos progressivamente mais estruturados.
-
-## 6. Preparacao dos Dados
-
-No inicio da analise, carreguei os CSVs sincronizados e detectei o inicio da
-oscilacao pelo maior salto de derivada. A partir desse ponto, cada sinal foi
-deslocado para iniciar em `t = 0`.
-
-Depois apliquei correcoes basicas:
-
-- zeragem do eixo de tempo;
-- remocao do offset do sinal;
-- salvamento dos arquivos corrigidos;
-- comparacao visual entre repeticoes experimentais.
-
-Essa etapa foi importante para garantir que a identificacao nao fosse feita
-sobre sinais desalinhados ou com deslocamento DC artificial.
-
-## 7. Reconstrucao por SVD
-
-Para reduzir ruido sem destruir a estrutura dinamica, usei uma abordagem baseada
-em matriz de trajetoria e decomposicao SVD. A serie temporal foi reorganizada em
-janelas, decomposta em valores singulares e reconstruida com os componentes mais
-relevantes.
-
-Na execucao principal, usei:
+With the acquisition and sensor response characterized, I organized the pipeline
+to turn the raw CSVs into physical results. The main flow was:
 
 ```text
-janela L = 100
-componentes mantidos = [0, 1]
+raw data
+  -> vibration onset detection
+  -> time and offset correction
+  -> visual inspection of the signals
+  -> SVD filtering and reconstruction
+  -> frequency estimation by FFT
+  -> SINDy identification
+  -> Hilbert envelope fit
+  -> ODE simulation
+  -> global parameter optimization
 ```
 
-A reconstrucao gerou a coluna `x_svd_limpo`, usada como entrada mais limpa para
-as etapas de identificacao.
+The `definitivo.ipynb` notebook concentrated the final stage of this analysis.
+There, the synchronized signals were cleaned, compared and used to fit
+progressively more structured dynamic models.
 
-## 8. Identificacao por SINDy e Modelo Duffing
+## 6. Data Preparation
 
-Com o sinal suavizado, preparei os estados de posicao e velocidade para aplicar
-SINDy. O objetivo foi descobrir uma equacao candidata para o oscilador a partir
-dos dados, sem impor manualmente todos os termos desde o inicio.
+At the start of the analysis, I loaded the synchronized CSVs and detected the
+oscillation onset by the largest derivative jump. From that point, each signal
+was shifted to start at `t = 0`.
 
-Um dos modelos identificados apresentou estrutura compativel com um oscilador
-tipo Duffing:
+I then applied basic corrections:
+
+- zeroing the time axis;
+- removing the signal offset;
+- saving the corrected files;
+- visually comparing experimental repetitions.
+
+This step was important to ensure the identification was not done on misaligned
+signals or with an artificial DC shift.
+
+## 7. SVD Reconstruction
+
+To reduce noise without destroying the dynamic structure, I used a
+trajectory-matrix approach based on SVD. The time series was reorganized into
+windows, decomposed into singular values and reconstructed with the most
+relevant components.
+
+In the main run I used:
+
+```text
+window L = 100
+components kept = [0, 1]
+```
+
+The reconstruction produced the `x_svd_limpo` column, used as a cleaner input
+for the identification stages.
+
+## 8. SINDy Identification and Duffing Model
+
+With the smoothed signal, I prepared the position and velocity states to apply
+SINDy. The goal was to discover a candidate equation for the oscillator from the
+data, without manually imposing all the terms from the start.
+
+One of the identified models had a structure compatible with a Duffing-type
+oscillator:
 
 ```text
 (x)' = 1.000 v
 (v)' = -20.285 -13892.495 x -0.508 v + 1.132 x^2 -0.214 x v + 4.082 x^3
 ```
 
-Tambem comparei configuracoes diferentes de SINDy:
+I also compared different SINDy configurations:
 
 ```text
 Model A R2 = 0.99973
 Model B R2 = 0.99974
 ```
 
-A interpretacao fisica foi que a rigidez linear domina a resposta, enquanto os
-termos nao lineares aparecem de forma mais relevante na dissipacao de energia e
-na correcao residual do sensor.
+The physical interpretation was that the linear stiffness dominates the response,
+while the nonlinear terms appear more relevantly in the energy dissipation and in
+the sensor's residual correction.
 
-## 9. Derivadas Suavizadas e Amortecimento Nao Linear
+## 9. Smoothed Derivatives and Nonlinear Damping
 
-Como a velocidade estimada por derivada numerica e sensivel a ruido, usei
-suavizacao Savitzky-Golay antes de calcular derivadas. Isso melhorou o retrato
-no espaco de fase e permitiu avaliar termos de amortecimento dependentes do
-estado.
+Since the velocity estimated by numerical differentiation is sensitive to noise,
+I used Savitzky-Golay smoothing before computing derivatives. That improved the
+phase-space portrait and allowed evaluating state-dependent damping terms.
 
-Os termos estimados nessa etapa foram:
+The terms estimated at this stage were:
 
 ```text
 v term:     -0.05324
@@ -246,13 +244,13 @@ x v term:    0.12095
 x^2 v term: -0.23613
 ```
 
-Essa parte da analise mostrou que a perda de energia do sistema nao precisava
-ser descrita apenas por amortecimento linear.
+This part of the analysis showed that the system's energy loss did not need to
+be described by linear damping alone.
 
-## 10. Ajuste da Envoltoria por Hilbert
+## 10. Hilbert Envelope Fit
 
-Usei a transformada de Hilbert para extrair a envoltoria do sinal amortecido e
-ajustar uma lei de decaimento. O ajuste retornou:
+I used the Hilbert transform to extract the envelope of the damped signal and fit
+a decay law. The fit returned:
 
 ```text
 gamma = 0.35865
@@ -260,24 +258,24 @@ eta   = 0.07722
 R0    = 4.6580
 ```
 
-Nesse modelo, `gamma` representa o amortecimento linear e `eta` representa uma
-componente de amortecimento nao linear. Isso transformou a curva de decaimento
-em parametros fisicos interpretaveis.
+In this model, `gamma` represents the linear damping and `eta` represents a
+nonlinear damping component. This turned the decay curve into interpretable
+physical parameters.
 
-## 11. Simulacao por EDO e Otimizacao Global
+## 11. ODE Simulation and Global Optimization
 
-Na etapa final, escrevi o oscilador como um sistema de EDOs de primeira ordem:
+In the final stage, I wrote the oscillator as a first-order ODE system:
 
 ```text
 x' = v
 v' = -omega_n^2 x - beta x^3 - (gamma + eta x^2) v
 ```
 
-Depois integrei numericamente esse modelo e ajustei os parametros para minimizar
-o erro entre a simulacao e o sinal experimental. Tambem refinei fase e frequencia
-para alinhar a trajetoria simulada com os dados reais.
+I then integrated this model numerically and tuned the parameters to minimize the
+error between the simulation and the experimental signal. I also refined phase and
+frequency to align the simulated trajectory with the real data.
 
-A calibracao fina indicou:
+The fine calibration indicated:
 
 ```text
 phase phi      = -0.0484 rad
@@ -285,7 +283,7 @@ omega          = 117.6848 rad/s
 omega^2        = 13849.72
 ```
 
-O ajuste global retornou:
+The global fit returned:
 
 ```text
 x0      = 4.2833 mm
@@ -296,36 +294,36 @@ omega^2 = 13907.74
 beta    = -6.91
 ```
 
-A figura organizada abaixo resume esse resultado, comparando o sinal ruidoso, o
-sinal suavizado por SVD, o modelo numerico otimizado e a envoltoria analitica:
+The figure below summarizes this result, comparing the noisy signal, the
+SVD-smoothed signal, the optimized numerical model and the analytic envelope:
 
 ![Duffing global envelope fit](../figures/advanced/duffing_global_envelope_fit.png)
 
-## 12. Interpretacao Final
+## 12. Final Interpretation
 
-O resultado principal do projeto foi a construcao de uma cadeia completa de
-identificacao experimental:
+The main result of the project was building a complete experimental
+identification chain:
 
-- montei a bancada de aquisicao;
-- adaptei o TCRT5000 para uso analogico;
-- registrei dados reais com Arduino;
-- tratei ruido, offset e sincronizacao em Python;
-- usei FFT para estimar frequencia dominante;
-- usei SVD para reconstruir sinais mais limpos;
-- usei SINDy para investigar a estrutura dinamica;
-- usei Hilbert para estimar amortecimento;
-- usei simulacao por EDO para ajustar um modelo fisico global.
+- assembled the acquisition bench;
+- adapted the TCRT5000 for analog use;
+- recorded real data with the Arduino;
+- handled noise, offset and synchronization in Python;
+- used the FFT to estimate the dominant frequency;
+- used SVD to reconstruct cleaner signals;
+- used SINDy to investigate the dynamic structure;
+- used Hilbert to estimate damping;
+- used ODE simulation to fit a global physical model.
 
-A conclusao tecnica e que o sistema medido se comporta principalmente como um
-oscilador de rigidez linear, mas a dissipacao de energia e a cadeia de medicao
-apresentam efeitos nao lineares relevantes. A reconstrucao residual permitiu
-separar parte da nao linearidade do sensor da dinamica mecanica principal,
-tornando o sensor um elemento modelado do experimento, e nao apenas uma fonte de
-dado bruto.
+The technical conclusion is that the measured system behaves mainly as a
+linear-stiffness oscillator, but the energy dissipation and the measurement chain
+present relevant nonlinear effects. The residual reconstruction made it possible
+to separate part of the sensor nonlinearity from the main mechanical dynamics,
+turning the sensor into a modeled element of the experiment rather than just a
+source of raw data.
 
-## 13. Fontes Originais Usadas
+## 13. Original Sources Used
 
-Os arquivos originais usados para organizar esta narrativa foram:
+The original files used to organize this narrative were:
 
 ```text
 C:\Users\rafael\Documents\arduino\AMM\AMM.ino
@@ -333,5 +331,5 @@ C:\Users\rafael\Downloads\TCRT5000.PDF
 C:\Users\rafael\PycharmProjects\pythonProject3_TCC\prof\definitivo.ipynb
 ```
 
-O datasheet do TCRT5000 foi usado como referencia tecnica e nao e redistribuido
-neste repositorio.
+The TCRT5000 datasheet was used as a technical reference and is not redistributed
+in this repository.

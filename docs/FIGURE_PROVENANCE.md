@@ -1,76 +1,75 @@
-# Proveniência das Figuras
+# Figure Provenance
 
-Mapeia cada figura curada no repositório à sua origem: o script/notebook
-original (em `C:\Users\rafael\PycharmProjects\pythonProject3_TCC`) ou o arquivo
-de saída solto (na raiz de `C:\Users\rafael`), e indica se hoje é **reproduzível**
-por um script deste repositório.
+Maps each curated figure in the repo to its origin: the original script/notebook
+(in `pythonProject3_TCC`) or the loose output file (in the home folder), and
+notes whether it is **reproducible** today by a script in this repo.
 
-Legenda de confiança da associação: ✅ alta · 🟡 provável · ❔ incerta.
+Association-confidence legend: ✅ high · 🟡 likely · ❔ uncertain.
 
-## `figures/generated/` — reproduzíveis agora
+## `figures/generated/` — reproducible now
 
-| Figura | Script deste repo |
+| Figure | Script in this repo |
 | --- | --- |
 | `signal.png`, `fft.png`, `envelope_fit.png`, `cwt_scalogram.png` | `scripts/run_basic_analysis.py` |
 | `sensor/dynamics_plus_sensor_fit.png`, `sensor/sensor_output_map.png` | `scripts/run_sensor_identification.py` |
 
-## `figures/main/` — workflow original
+## `figures/main/` — original workflow
 
-| Figura | Origem original | Solto em `C:\Users\rafael` | Reprodutível |
+| Figure | Original source | Loose file | Reproducible |
 | --- | --- | --- | --- |
-| `01_signal.png` | `final.ipynb` (visualização de sinal) | `Sinal.png` 🟡 | `run_basic_analysis.py` |
-| `01_noisy_vs_filtered_signal.png` | `completo.py` / `wav.py` | `linear.png` ❔ | parcial |
+| `01_signal.png` | `final.ipynb` (signal view) | `Sinal.png` 🟡 | `run_basic_analysis.py` |
+| `01_noisy_vs_filtered_signal.png` | `completo.py` / `wav.py` | `linear.png` ❔ | partial |
 | `02_fft.png` | `fft.py` / `final.ipynb` | `fft.png`, `fft_dado_15.png` 🟡 | `run_basic_analysis.py` |
 | `03_cwt.png` | `Scalograma.py` / `recon.py` | `CWT.png` ✅ | `run_basic_analysis.py` |
 | `04_hilbert_envelope.png` | `Hilbert.py` / `envelope.py` | `envelope_hilbert.png` ✅ | `run_basic_analysis.py` |
-| `05_gamma_fit.png` | `envelope.py` | `Gama.png`, `ajuste_gama.png` ✅ | parcial |
+| `05_gamma_fit.png` | `envelope.py` | `Gama.png`, `ajuste_gama.png` ✅ | partial |
 | `06_dwt_decomposition.png` | `Wavelets.py` / `wav.py` | `DWT_N2.png`, `DecomposicaoWT.png` 🟡 | via `wavelet_analysis.dwt_energy` |
-| `07_dominant_mode_reconstruction.png` | reconstrução DWT | `recontruscaoxoriginal.png` 🟡 | via `reconstruct_dominant_mode` |
+| `07_dominant_mode_reconstruction.png` | DWT reconstruction | `recontruscaoxoriginal.png` 🟡 | via `reconstruct_dominant_mode` |
 | `08_scale_energy.png` | `Wavelets.py` | `energia_escala.png` ✅ | via `wavelet_analysis.dwt_energy` |
-| `09_global_model_fit.png` | `completo.py` (otimização global) | `ajusteglobal.png` 🟡 | não (ver abaixo) |
+| `09_global_model_fit.png` | `completo.py` (global optimization) | `ajusteglobal.png` 🟡 | no (see below) |
 
 ## `figures/advanced/`
 
-| Figura | Origem original | Solto | Reprodutível |
+| Figure | Original source | Loose file | Reproducible |
 | --- | --- | --- | --- |
 | `havok_reconstruction.png` | `recon.py` | `havok.png` ✅ | via `havok.py` |
 | `sindy_identification.png` | `sindy_tratado.py` / `Synd.py` | `sindy.png` ✅ | via `sindy_model.py` / `run_advanced_analysis.py` |
 | `pinn_inverse_problem.png` | `PINN.py` | `probema inverso.png` 🟡 | via `pinn.py` / `run_advanced_analysis.py --run-pinn` |
-| `duffing_global_envelope_fit.png` | `prof/definitivo.ipynb` (otimização global, narrativa §11) | `ajusteglobal.png` ✅ | **sim** — `scripts/run_global_fit.py` |
+| `duffing_global_envelope_fit.png` | `prof/definitivo.ipynb` (global optimization, narrative §11) | `ajusteglobal.png` ✅ | **yes** — `scripts/run_global_fit.py` |
 
 ## `figures/sensor/`
 
-| Figura | Origem original | Solto | Reprodutível |
+| Figure | Original source | Loose file | Reproducible |
 | --- | --- | --- | --- |
 | `sensor_nonlinearity_fit.png` | `sss.ipynb` (output map `h(q)`) | `nonlinear.png` ✅ | via `run_sensor_identification.py` |
-| `sindy_linear_model_subtraction.png` | `completo.py` (resíduo linear) | `res1.png`, `res2.png` ✅ | via `run_sensor_residual.py` |
+| `sindy_linear_model_subtraction.png` | `completo.py` (linear residual) | `res1.png`, `res2.png` ✅ | via `run_sensor_residual.py` |
 | `sensor_residual_signature.png` | `completo.py` | — | via `run_sensor_residual.py` |
 | `sensor_residual_spectrum.png` | `completo.py` | — | via `run_sensor_residual.py` |
 | `sensor_residual_phase_space.png` | `completo.py` | — | via `run_sensor_residual.py` |
 | `sensor_response_surface_slice.png` | `completo.py` / `model.py` | — | via `run_sensor_residual.py` |
-| `sensor_residual_projection(_3d).png` | projeções SVD do resíduo | — | 🟡 variação (mesmo resíduo, outra projeção) |
+| `sensor_residual_projection(_3d).png` | SVD projections of the residual | — | 🟡 variation (same residual, different projection) |
 
-## `figures/setup/` — fotos
+## `figures/setup/` — photos
 
-| Figura | Origem |
+| Figure | Origin |
 | --- | --- |
-| `acquisition_rig_full.jpeg`, `arduino_sensor_circuit.jpeg`, `sensor_target_alignment.jpeg` | fotos da bancada (provavelmente as `WhatsApp Image 2026-01-06 …` em `C:\Users\rafael`) ❔ |
+| `acquisition_rig_full.jpeg`, `arduino_sensor_circuit.jpeg`, `sensor_target_alignment.jpeg` | bench photos (likely the `WhatsApp Image 2026-01-06 …` files in the home folder) ❔ |
 
-## Status de reprodutibilidade
+## Reproducibility status
 
-Todas as famílias de figuras de destaque têm agora um script reprodutível:
+Every headline figure family now has a reproducible script:
 
-- **Ajuste global Duffing** (`duffing_global_envelope_fit.png`) — portado de
-  `prof/definitivo.ipynb` para `global_fit.py` + `run_global_fit.py`. Reproduz a
-  narrativa §11 no sample de 18 Hz: `gamma≈0.353`, `eta≈0.078`, `omega^2≈13840`
-  (f≈18.72 Hz). O termo cúbico `beta` é fracamente identificável (saiu ~0; na
-  narrativa oscilou 172/−755/−6.9), então o oscilador é essencialmente linear na
-  rigidez, com a não-linearidade concentrada na **dissipação** (`eta`).
-- **Resíduo do sensor** (`sensor_residual_*`, `sensor_response_surface_slice.png`,
-  `sindy_linear_model_subtraction.png`) — portado de `completo.py` para
-  `sensor_residual.py` + `run_sensor_residual.py`, **com o bug `DT=1000`
-  corrigido** (ver `ORIGINAL_CODE_AUDIT.md`).
+- **Global Duffing fit** (`duffing_global_envelope_fit.png`) — ported from
+  `prof/definitivo.ipynb` into `global_fit.py` + `run_global_fit.py`. Reproduces
+  narrative §11 on the 18 Hz sample: `gamma≈0.353`, `eta≈0.078`, `omega^2≈13840`
+  (f≈18.72 Hz). The cubic term `beta` is weakly identifiable (came out ~0; it
+  swung 172/−755/−6.9 in the narrative), so the oscillator is essentially linear
+  in stiffness, with the nonlinearity concentrated in the **dissipation** (`eta`).
+- **Sensor residual** (`sensor_residual_*`, `sensor_response_surface_slice.png`,
+  `sindy_linear_model_subtraction.png`) — ported from `completo.py` into
+  `sensor_residual.py` + `run_sensor_residual.py`, **with the `DT=1000` bug
+  fixed** (see `ORIGINAL_CODE_AUDIT.md`).
 
-Observação: `sensor_residual_projection(_3d).png` são apenas projeções
-alternativas (SVD) do mesmo resíduo já reproduzido; não foram replicadas pixel a
-pixel, mas saem do mesmo `linear_dynamics_residual`.
+Note: `sensor_residual_projection(_3d).png` are just alternative (SVD)
+projections of the same already-reproduced residual; they were not replicated
+pixel-for-pixel, but come from the same `linear_dynamics_residual`.

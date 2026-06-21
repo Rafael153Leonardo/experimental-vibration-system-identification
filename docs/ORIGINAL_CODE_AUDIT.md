@@ -1,154 +1,153 @@
-# Auditoria do Código Original
+# Original Code Audit
 
-Este documento audita os scripts e notebooks exploratórios originais
-(`C:\Users\rafael\PycharmProjects\pythonProject3_TCC`) que deram origem às
-figuras e à narrativa publicadas. O objetivo é separar o que é **confiável e
-reproduzível** do que contém **bugs ou inconsistências**, para guiar o que foi
-portado para `src/vibration_id/`.
+This document audits the original exploratory scripts and notebooks
+(`pythonProject3_TCC`) that produced the published figures and narrative. The
+goal is to separate what is **trustworthy and reproducible** from what contains
+**bugs or inconsistencies**, and to explain what was ported into
+`src/vibration_id/`.
 
-Regra geral adotada no port: **portar = curar, não copiar.** Os originais são
-código de pesquisa (caminhos absolutos, imports duplicados, parâmetros
-contraditórios entre versões). Só o que está descrito abaixo como "confiável"
-foi migrado.
+Guiding rule for the port: **porting means curating, not copying.** The originals
+are research code (absolute paths, duplicated imports, parameters that
+contradict each other across versions). Only what is described as "trustworthy"
+below was migrated.
 
-## Mapa: figura publicada → código original
+## Map: published figure → original code
 
-| Figura no repositório | Código original | Estado |
+| Figure in this repo | Original code | Status |
 | --- | --- | --- |
-| `figures/advanced/havok_reconstruction.png` | `recon.py` (Hankel + SVD + SINDy linear) | confiável |
-| `figures/advanced/sindy_identification.png` | `sindy_tratado.py` | confiável |
-| `figures/advanced/duffing_global_envelope_fit.png` | `prof/definitivo.ipynb` (otimização global, narrativa §11) | **portado** (`global_fit.py`) |
-| `figures/sensor/sensor_nonlinearity_fit.png` | `sss.ipynb` (output map `h(q)`) | **confiável — melhor formulação** |
-| `figures/sensor/sindy_linear_model_subtraction.png` | `completo.py` (resíduo do modelo linear) | **portado** (`sensor_residual.py`, bug corrigido) |
-| `figures/sensor/sensor_residual_*` | `completo.py` (análise de resíduo) | **portado** (`sensor_residual.py`) |
-| classificação de material | `euler bernoulli.py` | já portado e corrigido |
+| `figures/advanced/havok_reconstruction.png` | `recon.py` (Hankel + SVD + linear SINDy) | trustworthy |
+| `figures/advanced/sindy_identification.png` | `sindy_tratado.py` | trustworthy |
+| `figures/advanced/duffing_global_envelope_fit.png` | `prof/definitivo.ipynb` (global optimization, narrative §11) | **ported** (`global_fit.py`) |
+| `figures/sensor/sensor_nonlinearity_fit.png` | `sss.ipynb` (output map `h(q)`) | **trustworthy — best formulation** |
+| `figures/sensor/sindy_linear_model_subtraction.png` | `completo.py` (linear-model residual) | **ported** (`sensor_residual.py`, bug fixed) |
+| `figures/sensor/sensor_residual_*` | `completo.py` (residual analysis) | **ported** (`sensor_residual.py`) |
+| material classification | `euler bernoulli.py` | already ported and corrected |
 
-## O que é confiável (e foi portado)
+## What is trustworthy (and was ported)
 
-### 1. SINDy restrito + mapa de saída do sensor — `sss.ipynb`
+### 1. Restricted SINDy + sensor output map — `sss.ipynb`
 
-É a formulação mais coerente de todo o material. Separa explicitamente:
+The most coherent formulation in the whole codebase. It explicitly separates:
 
-- **Dinâmica** (Duffing livre): `v' = -ω₀² q - γ v - α q³`, identificada por STLSQ
-  sobre a biblioteca `[q, v, q³]`.
-- **Mapa de saída do sensor** (não-linearidade estática): `h(q) = a₀ + a₁q + a₂q² + a₃q³`,
-  ajustado por mínimos quadrados entre o estado reconstruído e o sinal medido.
+- **Dynamics** (free Duffing): `v' = -ω₀² q - γ v - α q³`, identified by STLSQ
+  over the library `[q, v, q³]`.
+- **Sensor output map** (static nonlinearity): `h(q) = a₀ + a₁q + a₂q² + a₃q³`,
+  fitted by least squares between the reconstructed state and the measured signal.
 
-Essa separação dinâmica-vs-sensor é exatamente a ideia central da narrativa
-(seção 4). Portado para `src/vibration_id/nonlinear_id.py`.
+This dynamics-vs-sensor split is the central idea of the narrative (section 4).
+Ported to `src/vibration_id/nonlinear_id.py`.
 
-### 1b. Ajuste global Duffing com amortecimento não-linear — `prof/definitivo.ipynb`
+### 1b. Global Duffing fit with nonlinear damping — `prof/definitivo.ipynb`
 
-Procedimento em 3 estágios (narrativa §11), portado para `global_fit.py`:
+A 3-stage procedure (narrative §11), ported to `global_fit.py`:
 
-1. **Envoltória não-linear** (curve_fit) sobre o envelope de Hilbert, modelo
-   `r(t) = sqrt( e^(-γt) / (1/r0² + (η/4γ)(1 - e^(-γt))) )` → recupera `γ` (linear)
-   e `η` (não-linear).
-2. **Calibração de fase/frequência** (curve_fit em `A e^(-γt) cos(ωt+φ)` no início)
-   → `ω` preciso e `φ` (condições iniciais). Crucial: ajustar MSE direto num sinal
-   longo é multimodal em frequência; este estágio trava `ω` antes do refino.
-3. **Otimização global** (Nelder-Mead) de `(ω₀², β, φ)` com `γ, η` fixos,
-   minimizando o MSE da simulação de `x'' = -ω₀²x - βx³ - (γ+ηx²)x'`.
+1. **Nonlinear envelope** (curve_fit) on the Hilbert envelope, model
+   `r(t) = sqrt( e^(-γt) / (1/r0² + (η/4γ)(1 - e^(-γt))) )` → recovers `γ` (linear)
+   and `η` (nonlinear).
+2. **Phase/frequency calibration** (curve_fit on `A e^(-γt) cos(ωt+φ)` over the
+   early signal) → precise `ω` and `φ` (initial conditions). Crucial: a direct
+   MSE fit over a long signal is multimodal in frequency; this stage locks `ω`
+   before the refinement.
+3. **Global optimization** (Nelder-Mead) of `(ω₀², β, φ)` with `γ, η` fixed,
+   minimizing the MSE of the simulation of `x'' = -ω₀²x - βx³ - (γ+ηx²)x'`.
 
-Reproduz a narrativa: `γ≈0.353, η≈0.078, ω²≈13840 (f≈18.72 Hz)`. O `β` é
-fracamente identificável (na narrativa variou 172/−755/−6.9 entre runs), logo a
-não-linearidade dominante é na dissipação, não na rigidez.
+Reproduces the narrative: `γ≈0.353, η≈0.078, ω²≈13840 (f≈18.72 Hz)`. `β` is
+weakly identifiable (it swung 172/−755/−6.9 across runs in the narrative), so the
+dominant nonlinearity is in the dissipation, not in the stiffness.
 
-### 2. SVD de ensemble — `Untitled.ipynb`
+### 2. Ensemble SVD — `Untitled.ipynb`
 
-Interpola N experimentos num eixo de tempo comum, monta a matriz `X (M × N)` e
-aplica SVD; reconstrução de posto baixo (`r=1,2`) com erro de Frobenius
-relativo. Tecnicamente correto. Portado para `src/vibration_id/ssa.py`
-(`ensemble_svd` / `reconstruct_rank`).
+Interpolates N experiments onto a common time axis, builds the `X (M × N)` matrix
+and applies SVD; low-rank reconstruction (`r=1,2`) with the relative Frobenius
+error. Technically correct. Ported to `src/vibration_id/ssa.py`
+(`build_ensemble` / `reconstruct_rank`).
 
 ### 3. HAVOK — `recon.py`
 
-Hankel (`stack_size=1000`) + SVD + SINDy linear sobre os modos. Já coberto por
-`src/vibration_id/havok.py`. A única observação é o uso de `M_eff_g = 9.335 g`
-como massa efetiva **incluindo o alvo de papel** — confirma a necessidade da
-correção de massa de ponta no modelo Euler-Bernoulli (ver abaixo).
+Hankel (`stack_size=1000`) + SVD + linear SINDy on the modes. Already covered by
+`src/vibration_id/havok.py`. The one note is the use of `M_eff_g = 9.335 g` as an
+effective mass **including the paper target** — which motivated the tip-mass
+correction in the Euler-Bernoulli model (see below).
 
-### 4. Fator de qualidade por meia-potência — `fatorQ.py`
+### 4. Half-power quality factor — `fatorQ.py`
 
-Usa o método correto `Q = f_r / Δf`, com `Δf` medido na banda de meia-potência
-(−3 dB) ao redor do pico. Portado para `src/vibration_id/damping.py`
-(`quality_factor_half_power`). O repositório limpo vinha usando apenas a
-convenção `f₀/γ`, que **não** é o Q físico (falta o fator 2π).
+Uses the correct method `Q = f_r / Δf`, with `Δf` measured on the half-power
+(−3 dB) band around the peak. Ported to `src/vibration_id/damping.py`
+(`quality_factor_half_power`). The clean repo had been using only the `f₀/γ`
+convention, which is **not** the physical Q (missing the 2π factor).
 
-## O que tem bug ou inconsistência (NÃO portar como está)
+## What has bugs or inconsistencies (do NOT port as is)
 
-### A. `completo.py` — `DT = 1000` usado como passo de derivada
+### A. `completo.py` — `DT = 1000` used as the derivative step
 
-Na linha que define `DT = 1000` e depois chama
-`savgol_filter(x, ..., deriv=1, delta=DT)`, o `delta` deveria ser o passo de
-amostragem em segundos (`1e-3`), não `1000`. Isso escala a velocidade por um
-fator `1e6`, invalidando qualquer parâmetro físico derivado dessa velocidade.
-**Corrigido no port** (`sensor_residual.py` / `run_sensor_residual.py`): a
-velocidade usa `velocity_savgol(t, q, ...)`, que deriva `delta` do vetor de
-tempo real.
+In the line that defines `DT = 1000` and then calls
+`savgol_filter(x, ..., deriv=1, delta=DT)`, `delta` should be the sampling period
+in seconds (`1e-3`), not `1000`. This scales the velocity by `1e6`, invalidating
+any physical parameter derived from that velocity. **Fixed in the port**
+(`sensor_residual.py` / `run_sensor_residual.py`): the velocity uses
+`velocity_savgol(t, q, ...)`, which derives `delta` from the real time vector.
 
-### B. `completo.py` — três modelos SINDy contraditórios
+### B. `completo.py` — three contradictory SINDy models
 
-O mesmo arquivo define `omega0_sq` como `981.94`, `983.308` e `1060.851` em
-funções diferentes, além de coeficientes não-lineares inconsistentes
-(`+39.8 x²`, `-52 x²`, `+3 x³`). São tentativas diferentes deixadas lado a lado;
-nenhuma é "a" identificação final. Use a formulação de `sss.ipynb`.
+The same file defines `omega0_sq` as `981.94`, `983.308` and `1060.851` in
+different functions, plus inconsistent nonlinear coefficients (`+39.8 x²`,
+`-52 x²`, `+3 x³`). These are different attempts left side by side; none is "the"
+final identification. Use the `sss.ipynb` formulation.
 
-### C. `euler bernoulli.py` — geometria divergente do comentário
+### C. `euler bernoulli.py` — geometry inconsistent with the comments
 
-Na função teórica, `L = 0.27` e `h = 0.003` enquanto os comentários dizem
-"30 cm" e "2.33 mm". A função inversa usa `L = 0.30`, `h = 0.00233`. O port
-(`materials.py`) adota explicitamente `L = 0.30 m`, `h = 2.33 mm` para o plástico
-e `L = 0.27 m`, `h = 1.50 mm` para o inox, documentados em
+In the theoretical function, `L = 0.27` and `h = 0.003` while the comments say
+"30 cm" and "2.33 mm". The inverse function uses `L = 0.30`, `h = 0.00233`. The
+port (`materials.py`) explicitly adopts `L = 0.30 m`, `h = 2.33 mm` for the
+plastic ruler, with the inox geometry documented in
 `data/sample/material_trials.csv`.
 
-### D. Euler-Bernoulli sem massa de ponta
+### D. Euler-Bernoulli without tip mass
 
-O modelo engastada-livre não considerava massa na ponta. Foi adicionada a
-correção de massa efetiva (Rayleigh, `m_eff = 0.2427 rho A L + m_ponta`) em
-`materials.py`, disponível via `--tip-mass-kg` (CLI) e estimada das dimensões
-`tip_*` no estudo de materiais.
+The clamped-free model did not account for a tip mass. A Rayleigh effective-mass
+correction (`m_eff = 0.2427 rho A L + m_tip`) was added in `materials.py`,
+available via `--tip-mass-kg` (CLI) and estimated from the `tip_*` dimensions in
+the material study.
 
-**Proveniência dos dados (verificado):** os samples de inox do repositório são
-genuínos — `sample_inox_raw_calibrated.csv` é numericamente idêntico a
-`Dataset_sensor/inox/dados_calibrados_01.csv`. O inox é um conjunto reproduzível
-(29 + 10 arquivos, f₀ ≈ 4,98 Hz, desvio ±0,001–0,011 Hz), **não** um dado
-isolado. O `dados_perfeitos.csv` do professor (18,7 Hz) é um arquivo separado,
-usado só como baseline de sinal / ajuste Duffing — não entra na classificação do
-inox.
+**Data provenance (verified):** the repo inox samples are genuine —
+`sample_inox_raw_calibrated.csv` is numerically identical to
+`Dataset_sensor/inox/dados_calibrados_01.csv`. The inox is a reproducible
+ensemble (29 + 10 files, f₀ ≈ 4.98 Hz, std ±0.001–0.011 Hz), **not** an isolated
+data point. The professor's `dados_perfeitos.csv` (18.7 Hz) is a separate file,
+used only as a signal baseline / Duffing fit — it does not enter the inox
+classification.
 
-**Geometria corrigida (foto da régua):** `L=0.300 m`, `h=1.00 mm`, `b=25 mm`. A
-espessura antes documentada (`1.5 mm`) estava errada; como `E ∝ 1/h²`, isso
-sozinho inflava a discrepância. Com `h=1 mm` o E sobe de `17,6 GPa` para
-`61,4 GPa`.
+**Corrected geometry (ruler photo):** `L=0.300 m`, `h=1.00 mm`, `b=25 mm`. The
+previously documented thickness (`1.5 mm`) was wrong; since `E ∝ 1/h²`, that
+alone inflated the discrepancy. With `h=1 mm`, E rises from `17.6 GPa` to
+`61.4 GPa`.
 
-**Resolução (engaste isolado por experimento forçado):** a mesma régua foi
-excitada nos 4 primeiros modos (`~5,0 / 31,2 / 86,8 / 173,5 Hz`,
-`Dataset_sensor/forcado`). Os modos de uma viga engastada **não** são harmônicos
-inteiros — seguem a escada `βₙ²` (`1 : 6,27 : 17,5 : 34,4`). As razões medidas
-batem com essa escada ideal dentro de **~1%**, o que prova **engaste ideal** e
-ausência de massa de ponta relevante (um engaste mole ou uma massa de ponta
-empurrariam as razões dos modos altos para *cima* do ideal; elas caem sobre a
-linha ideal). Diagnóstico no módulo `beam_modes.py`.
+**Resolution (clamp isolated by a forced experiment):** the same ruler was driven
+at its first 4 modes (`~5.0 / 31.2 / 86.8 / 173.5 Hz`, `Dataset_sensor/forcado`).
+A cantilever's modes are **not** integer harmonics — they follow the `βₙ²` ladder
+(`1 : 6.27 : 17.5 : 34.4`). The measured ratios match that ideal ladder within
+**~1%**, which proves an **ideal clamp** and the absence of a significant tip mass
+(a soft clamp or a tip mass would push the higher-mode ratios *up*, off the ideal
+line; here they sit on it). Diagnostic in the `beam_modes.py` module.
 
-Com o contorno descartado, sobrou a geometria: o micrômetro deu **h = 0,55 mm**
-(o "1 mm" da régua é nominal). Com a espessura real, o inverso do 1º modo dá
-**E ≈ 205 GPa**, dentro da faixa de aço inox/carbono (190–210 GPa). **Correção de
-rumo honesta:** a hipótese anterior ("compliance do engaste domina o gap")
-**estava errada** — o experimento forçado, projetado justamente para isolar o
-engaste, mostrou que o engaste é ideal e que o erro era a espessura. A correção
-de massa de ponta segue sendo um recurso válido para montagens em que a massa
-adicionada é relevante.
+With the boundary ruled out, only geometry was left: a micrometer read
+**h = 0.55 mm** (the "1 mm" marking is nominal). With the true thickness, the
+first-mode inverse gives **E ≈ 205 GPa**, inside the stainless/carbon-steel range
+(190–210 GPa). **Honest course correction:** the earlier hypothesis ("clamp
+compliance dominates the gap") **was wrong** — the forced experiment, designed
+precisely to isolate the clamp, showed the clamp is ideal and that the error was
+the thickness. The tip-mass correction remains a valid tool for rigs where the
+added mass is significant.
 
-### E. `fatorQ.py` / `euler bernoulli.py` — `input()` e caminhos absolutos
+### E. `fatorQ.py` / `euler bernoulli.py` — `input()` and absolute paths
 
-Misturam I/O interativo, `plt.show()` e caminhos fixos de dataset. No port, toda
-entrada vira argumento de função/CLI e nenhuma figura é aberta interativamente.
+These mix interactive I/O, `plt.show()` and hardcoded dataset paths. In the port,
+all input becomes a function/CLI argument and no figure is opened interactively.
 
-## Notebooks: papel de cada um
+## Notebooks: role of each
 
-| Notebook | Conteúdo | Aproveitado |
+| Notebook | Content | Reused |
 | --- | --- | --- |
-| `final.ipynb` | sincronização, corte por derivada, FFT individual e de ensemble, classificação de ruído 1/f | conceitos já no pipeline; ensemble-FFT é candidato a port futuro |
-| `Untitled.ipynb` | SVD de ensemble entre experimentos | portado (`ssa.py`) |
-| `sss.ipynb` | Duffing + mapa de saída do sensor | portado (`nonlinear_id.py`) |
+| `final.ipynb` | synchronization, derivative-based cropping, individual and ensemble FFT, 1/f noise classification | concepts already in the pipeline; ensemble-FFT is a future-port candidate |
+| `Untitled.ipynb` | ensemble SVD across experiments | ported (`ssa.py`) |
+| `sss.ipynb` | Duffing + sensor output map | ported (`nonlinear_id.py`) |
