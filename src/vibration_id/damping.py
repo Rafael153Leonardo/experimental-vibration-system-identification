@@ -62,7 +62,62 @@ def fit_exponential_envelope(
 
 
 def quality_factor(frequency_hz: float, gamma: float) -> float:
-    """Estimate Q using the convention Q = f0 / gamma."""
+    """Physical quality factor of a damped oscillator.
 
+    For an envelope ``A0 exp(-gamma t / 2)`` the standard quality factor is
+    ``Q = omega_n / gamma = 2*pi*f0 / gamma``. An earlier version of this
+    function returned ``f0 / gamma``, which is off by a factor of ``2*pi`` and is
+    *not* the physical Q; see :func:`frequency_to_decay_ratio` for that quantity.
+    """
+
+    if gamma == 0:
+        return float("inf")
+    return float(2.0 * np.pi * frequency_hz / gamma)
+
+
+def frequency_to_decay_ratio(frequency_hz: float, gamma: float) -> float:
+    """Dimensionless ratio ``f0 / gamma`` (the old, non-standard convention)."""
+
+    if gamma == 0:
+        return float("inf")
     return float(frequency_hz / gamma)
 
+
+def quality_factor_half_power(
+    freqs: np.ndarray,
+    amplitudes: np.ndarray,
+    *,
+    peak_index: int | None = None,
+) -> tuple[float, float, float]:
+    """Estimate Q from the -3 dB (half-power) bandwidth around a spectral peak.
+
+    Ported from the original ``fatorQ.py``. Returns ``(q, peak_frequency_hz,
+    bandwidth_hz)`` where ``Q = f_r / delta_f`` and ``delta_f`` is the width of
+    the band where the amplitude first drops below ``peak / sqrt(2)`` on each
+    side of the peak. This is the physically standard, spectrum-based estimator
+    and does not depend on a separate damping fit.
+    """
+
+    freqs = np.asarray(freqs, dtype=float)
+    amplitudes = np.asarray(amplitudes, dtype=float)
+    if len(freqs) != len(amplitudes) or len(freqs) < 3:
+        raise ValueError("freqs and amplitudes must be equal-length arrays with >= 3 bins.")
+
+    idx = int(np.argmax(amplitudes)) if peak_index is None else int(peak_index)
+    peak_amp = amplitudes[idx]
+    if peak_amp <= 0:
+        raise ValueError("Peak amplitude must be positive.")
+
+    half_power = peak_amp / np.sqrt(2.0)
+    left = np.where(amplitudes[:idx] <= half_power)[0]
+    right = np.where(amplitudes[idx:] <= half_power)[0]
+    if left.size == 0 or right.size == 0:
+        raise ValueError("Half-power points not found inside the provided spectrum.")
+
+    f1 = freqs[left[-1]]
+    f2 = freqs[right[0] + idx]
+    bandwidth = float(f2 - f1)
+    f_r = float(freqs[idx])
+    if bandwidth <= 0:
+        raise ValueError("Non-positive half-power bandwidth.")
+    return float(f_r / bandwidth), f_r, bandwidth

@@ -12,8 +12,13 @@ preprocessing.py      offset removal, onset detection, denoising, velocity
 spectral.py           FFT, PSD, dominant frequency
 damping.py            Hilbert envelope and exponential damping fit
 wavelet_analysis.py   CWT, DWT energy, dominant mode reconstruction
-materials.py          Euler-Bernoulli beam model and material ranking
+materials.py          Euler-Bernoulli beam model (with tip-mass correction) and material ranking
+beam_modes.py         cantilever modal ladder: separate clamp quality from material
 sindy_model.py        optional SINDy oscillator identification
+nonlinear_id.py       Duffing dynamics + polynomial sensor output map h(q)
+global_fit.py         3-stage global Duffing fit with nonlinear damping
+sensor_residual.py    linear-model residual analysis for the sensor nonlinearity
+ssa.py                ensemble-SVD reconstruction across repeated experiments
 havok.py              Hankel matrix, SVD and HAVOK identification
 pinn.py               two-stage PINN with trainable physical parameters
 synthetic.py          synthetic damped oscillator generation

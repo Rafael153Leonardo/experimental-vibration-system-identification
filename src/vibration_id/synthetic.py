@@ -21,4 +21,3 @@ def damped_oscillator(
     x = envelope * np.cos(2.0 * np.pi * frequency_hz * t)
     x += rng.normal(0.0, noise_std, size=len(t))
     return t, x
-

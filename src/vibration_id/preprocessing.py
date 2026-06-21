@@ -82,4 +82,3 @@ def velocity_savgol(
     if window_length <= polyorder:
         return np.gradient(x, dt)
     return savgol_filter(x, window_length, polyorder, deriv=1, delta=dt)
-

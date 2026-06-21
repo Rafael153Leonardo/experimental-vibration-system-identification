@@ -1,0 +1,153 @@
+# Original Code Audit
+
+This document audits the original exploratory scripts and notebooks
+(`pythonProject3_TCC`) that produced the published figures and narrative. The
+goal is to separate what is **trustworthy and reproducible** from what contains
+**bugs or inconsistencies**, and to explain what was ported into
+`src/vibration_id/`.
+
+Guiding rule for the port: **porting means curating, not copying.** The originals
+are research code (absolute paths, duplicated imports, parameters that
+contradict each other across versions). Only what is described as "trustworthy"
+below was migrated.
+
+## Map: published figure → original code
+
+| Figure in this repo | Original code | Status |
+| --- | --- | --- |
+| `figures/advanced/havok_reconstruction.png` | `recon.py` (Hankel + SVD + linear SINDy) | trustworthy |
+| `figures/advanced/sindy_identification.png` | `sindy_tratado.py` | trustworthy |
+| `figures/advanced/duffing_global_envelope_fit.png` | `prof/definitivo.ipynb` (global optimization, narrative §11) | **ported** (`global_fit.py`) |
+| `figures/sensor/sensor_nonlinearity_fit.png` | `sss.ipynb` (output map `h(q)`) | **trustworthy — best formulation** |
+| `figures/sensor/sindy_linear_model_subtraction.png` | `completo.py` (linear-model residual) | **ported** (`sensor_residual.py`, bug fixed) |
+| `figures/sensor/sensor_residual_*` | `completo.py` (residual analysis) | **ported** (`sensor_residual.py`) |
+| material classification | `euler bernoulli.py` | already ported and corrected |
+
+## What is trustworthy (and was ported)
+
+### 1. Restricted SINDy + sensor output map — `sss.ipynb`
+
+The most coherent formulation in the whole codebase. It explicitly separates:
+
+- **Dynamics** (free Duffing): `v' = -ω₀² q - γ v - α q³`, identified by STLSQ
+  over the library `[q, v, q³]`.
+- **Sensor output map** (static nonlinearity): `h(q) = a₀ + a₁q + a₂q² + a₃q³`,
+  fitted by least squares between the reconstructed state and the measured signal.
+
+This dynamics-vs-sensor split is the central idea of the narrative (section 4).
+Ported to `src/vibration_id/nonlinear_id.py`.
+
+### 1b. Global Duffing fit with nonlinear damping — `prof/definitivo.ipynb`
+
+A 3-stage procedure (narrative §11), ported to `global_fit.py`:
+
+1. **Nonlinear envelope** (curve_fit) on the Hilbert envelope, model
+   `r(t) = sqrt( e^(-γt) / (1/r0² + (η/4γ)(1 - e^(-γt))) )` → recovers `γ` (linear)
+   and `η` (nonlinear).
+2. **Phase/frequency calibration** (curve_fit on `A e^(-γt) cos(ωt+φ)` over the
+   early signal) → precise `ω` and `φ` (initial conditions). Crucial: a direct
+   MSE fit over a long signal is multimodal in frequency; this stage locks `ω`
+   before the refinement.
+3. **Global optimization** (Nelder-Mead) of `(ω₀², β, φ)` with `γ, η` fixed,
+   minimizing the MSE of the simulation of `x'' = -ω₀²x - βx³ - (γ+ηx²)x'`.
+
+Reproduces the narrative: `γ≈0.353, η≈0.078, ω²≈13840 (f≈18.72 Hz)`. `β` is
+weakly identifiable (it swung 172/−755/−6.9 across runs in the narrative), so the
+dominant nonlinearity is in the dissipation, not in the stiffness.
+
+### 2. Ensemble SVD — `Untitled.ipynb`
+
+Interpolates N experiments onto a common time axis, builds the `X (M × N)` matrix
+and applies SVD; low-rank reconstruction (`r=1,2`) with the relative Frobenius
+error. Technically correct. Ported to `src/vibration_id/ssa.py`
+(`build_ensemble` / `reconstruct_rank`).
+
+### 3. HAVOK — `recon.py`
+
+Hankel (`stack_size=1000`) + SVD + linear SINDy on the modes. Already covered by
+`src/vibration_id/havok.py`. The one note is the use of `M_eff_g = 9.335 g` as an
+effective mass **including the paper target** — which motivated the tip-mass
+correction in the Euler-Bernoulli model (see below).
+
+### 4. Half-power quality factor — `fatorQ.py`
+
+Uses the correct method `Q = f_r / Δf`, with `Δf` measured on the half-power
+(−3 dB) band around the peak. Ported to `src/vibration_id/damping.py`
+(`quality_factor_half_power`). The clean repo had been using only the `f₀/γ`
+convention, which is **not** the physical Q (missing the 2π factor).
+
+## What has bugs or inconsistencies (do NOT port as is)
+
+### A. `completo.py` — `DT = 1000` used as the derivative step
+
+In the line that defines `DT = 1000` and then calls
+`savgol_filter(x, ..., deriv=1, delta=DT)`, `delta` should be the sampling period
+in seconds (`1e-3`), not `1000`. This scales the velocity by `1e6`, invalidating
+any physical parameter derived from that velocity. **Fixed in the port**
+(`sensor_residual.py` / `run_sensor_residual.py`): the velocity uses
+`velocity_savgol(t, q, ...)`, which derives `delta` from the real time vector.
+
+### B. `completo.py` — three contradictory SINDy models
+
+The same file defines `omega0_sq` as `981.94`, `983.308` and `1060.851` in
+different functions, plus inconsistent nonlinear coefficients (`+39.8 x²`,
+`-52 x²`, `+3 x³`). These are different attempts left side by side; none is "the"
+final identification. Use the `sss.ipynb` formulation.
+
+### C. `euler bernoulli.py` — geometry inconsistent with the comments
+
+In the theoretical function, `L = 0.27` and `h = 0.003` while the comments say
+"30 cm" and "2.33 mm". The inverse function uses `L = 0.30`, `h = 0.00233`. The
+port (`materials.py`) explicitly adopts `L = 0.30 m`, `h = 2.33 mm` for the
+plastic ruler, with the inox geometry documented in
+`data/sample/material_trials.csv`.
+
+### D. Euler-Bernoulli without tip mass
+
+The clamped-free model did not account for a tip mass. A Rayleigh effective-mass
+correction (`m_eff = 0.2427 rho A L + m_tip`) was added in `materials.py`,
+available via `--tip-mass-kg` (CLI) and estimated from the `tip_*` dimensions in
+the material study.
+
+**Data provenance (verified):** the repo inox samples are genuine —
+`sample_inox_raw_calibrated.csv` is numerically identical to
+`Dataset_sensor/inox/dados_calibrados_01.csv`. The inox is a reproducible
+ensemble (29 + 10 files, f₀ ≈ 4.98 Hz, std ±0.001–0.011 Hz), **not** an isolated
+data point. The professor's `dados_perfeitos.csv` (18.7 Hz) is a separate file,
+used only as a signal baseline / Duffing fit — it does not enter the inox
+classification.
+
+**Corrected geometry (ruler photo):** `L=0.300 m`, `h=1.00 mm`, `b=25 mm`. The
+previously documented thickness (`1.5 mm`) was wrong; since `E ∝ 1/h²`, that
+alone inflated the discrepancy. With `h=1 mm`, E rises from `17.6 GPa` to
+`61.4 GPa`.
+
+**Resolution (clamp isolated by a forced experiment):** the same ruler was driven
+at its first 4 modes (`~5.0 / 31.2 / 86.8 / 173.5 Hz`, `Dataset_sensor/forcado`).
+A cantilever's modes are **not** integer harmonics — they follow the `βₙ²` ladder
+(`1 : 6.27 : 17.5 : 34.4`). The measured ratios match that ideal ladder within
+**~1%**, which proves an **ideal clamp** and the absence of a significant tip mass
+(a soft clamp or a tip mass would push the higher-mode ratios *up*, off the ideal
+line; here they sit on it). Diagnostic in the `beam_modes.py` module.
+
+With the boundary ruled out, only geometry was left: a micrometer read
+**h = 0.55 mm** (the "1 mm" marking is nominal). With the true thickness, the
+first-mode inverse gives **E ≈ 205 GPa**, inside the stainless/carbon-steel range
+(190–210 GPa). **Honest course correction:** the earlier hypothesis ("clamp
+compliance dominates the gap") **was wrong** — the forced experiment, designed
+precisely to isolate the clamp, showed the clamp is ideal and that the error was
+the thickness. The tip-mass correction remains a valid tool for rigs where the
+added mass is significant.
+
+### E. `fatorQ.py` / `euler bernoulli.py` — `input()` and absolute paths
+
+These mix interactive I/O, `plt.show()` and hardcoded dataset paths. In the port,
+all input becomes a function/CLI argument and no figure is opened interactively.
+
+## Notebooks: role of each
+
+| Notebook | Content | Reused |
+| --- | --- | --- |
+| `final.ipynb` | synchronization, derivative-based cropping, individual and ensemble FFT, 1/f noise classification | concepts already in the pipeline; ensemble-FFT is a future-port candidate |
+| `Untitled.ipynb` | ensemble SVD across experiments | ported (`ssa.py`) |
+| `sss.ipynb` | Duffing + sensor output map | ported (`nonlinear_id.py`) |
