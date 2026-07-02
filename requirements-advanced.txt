@@ -1,4 +1,4 @@
 -r requirements.txt
-pysindy
+pysindy>=2
 torch
 
