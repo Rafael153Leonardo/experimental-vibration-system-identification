@@ -31,12 +31,24 @@ def parse_args() -> argparse.Namespace:
         help="Output directory for generated advanced figures.",
     )
     parser.add_argument("--max-samples", type=int, default=3000, help="Maximum samples for advanced methods.")
+    parser.add_argument(
+        "--sindy-samples",
+        type=int,
+        default=9000,
+        help="Contiguous full-rate samples for SINDy (derivative-based identification needs the full sampling rate).",
+    )
     parser.add_argument("--havok-delays", type=int, default=120, help="Number of Hankel delays.")
     parser.add_argument("--havok-rank", type=int, default=6, help="HAVOK reduced rank.")
     parser.add_argument("--run-pinn", action="store_true", help="Train the optional PyTorch PINN model.")
-    parser.add_argument("--pinn-stage1-epochs", type=int, default=150, help="PINN linear-stage epochs.")
-    parser.add_argument("--pinn-stage2-epochs", type=int, default=150, help="PINN nonlinear-stage epochs.")
-    parser.add_argument("--pinn-max-points", type=int, default=900, help="Maximum PINN training samples.")
+    parser.add_argument(
+        "--pinn-csv",
+        type=Path,
+        default=ROOT / "data" / "sample" / "sample_inox_synchronized.csv",
+        help="Signal for the PINN demo (defaults to the inox 4.98 Hz sample used by the original experiment).",
+    )
+    parser.add_argument("--pinn-stage1-epochs", type=int, default=3000, help="PINN linear-stage epochs.")
+    parser.add_argument("--pinn-stage2-epochs", type=int, default=1000, help="PINN nonlinear-stage epochs.")
+    parser.add_argument("--pinn-max-points", type=int, default=1200, help="Maximum PINN training samples.")
     return parser.parse_args()
 
 
@@ -118,12 +130,18 @@ def main() -> None:
     print(f"  B_shape: {B.shape}")
 
     try:
-        state = state_from_position(t_small, x_small, method="savgol", window_length=81, polyorder=3)
-        dt = float(np.median(np.diff(t_small)))
+        # SINDy works on a contiguous full-rate window: strided decimation
+        # leaves too few samples per period, and finite-difference derivatives
+        # on such a grid bias the identified stiffness strongly low. The savgol
+        # window must also stay well under one oscillation period.
+        t_id = t[: args.sindy_samples]
+        x_id = x[: args.sindy_samples]
+        state = state_from_position(t_id, x_id, method="savgol", window_length=21, polyorder=3)
+        dt = float(np.median(np.diff(t_id)))
         model = fit_linear_sindy([state], dt=dt, threshold=0.01, alpha=0.05)
         params = physical_params_from_sindy(model)
-        sim = model.simulate(state[0], t_small)
-        save_sindy_plot(args.out, t_small, x_small, sim[:, 0])
+        sim = model.simulate(state[0], t_id)
+        save_sindy_plot(args.out, t_id, x_id, sim[:, 0])
         print("SINDy")
         print(f"  frequency_hz: {params.frequency_hz:.4f}")
         print(f"  zeta: {params.zeta:.6f}")
@@ -143,11 +161,16 @@ def main() -> None:
                 stage2_epochs=args.pinn_stage2_epochs,
                 max_points=args.pinn_max_points,
             )
-            result = train_two_stage_pinn(t_small, x_small, config)
-            x_pred = predict(result.model, t_small)
-            save_pinn_plot(args.out, t_small, x_small, x_pred)
+            # The PINN gets the full-rate signal; train_two_stage_pinn picks a
+            # Nyquist-safe training window itself.
+            pinn_cleaned = load_clean_signal(args.pinn_csv)
+            result = train_two_stage_pinn(pinn_cleaned.t, pinn_cleaned.clean, config)
+            x_pred = predict(result.model, result.t_train)
+            save_pinn_plot(args.out, result.t_train, result.x_train, x_pred)
             print("PINN")
+            print(f"  source: {args.pinn_csv}")
             print(f"  device: {result.device}")
+            print(f"  training_window_s: {float(result.t_train[-1] - result.t_train[0]):.2f}")
             print(f"  frequency_hz: {result.frequency_hz:.4f}")
             print(f"  mu: {result.mu:.6f}")
             print(f"  alpha: {result.alpha:.8f}")

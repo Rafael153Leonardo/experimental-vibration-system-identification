@@ -58,7 +58,13 @@ def load_clean_signal(
 
 
 def decimate(t: np.ndarray, x: np.ndarray, max_points: int) -> tuple[np.ndarray, np.ndarray]:
-    """Evenly subsample ``(t, x)`` to at most ``max_points`` samples."""
+    """Evenly subsample ``(t, x)`` to at most ``max_points`` samples.
+
+    The resulting grid is only *approximately* uniform (the stride jitters by
+    one sample when ``len(t) / max_points`` is not an integer), so this is fine
+    for plotting or SVD-based methods but must not feed derivative-based
+    identification — use a contiguous full-rate window for that instead.
+    """
 
     if max_points <= 0 or len(t) <= max_points:
         return t, x
