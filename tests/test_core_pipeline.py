@@ -1,7 +1,7 @@
 import numpy as np
 
 from vibration_id.damping import fit_exponential_envelope
-from vibration_id.havok import havok_svd, identify_havok
+from vibration_id.havok import havok_svd, identify_havok, simulate_havok
 from vibration_id.materials import (
     BeamGeometry,
     natural_frequency_cantilever,
@@ -35,6 +35,26 @@ def test_havok_shapes_are_consistent():
     assert b.shape == (4, 1)
     assert z.shape[0] == 4
     assert u.shape[0] == 1
+
+
+def test_havok_simulation_tracks_extracted_mode():
+    t, x = damped_oscillator(duration=2.0, frequency_hz=8.0, gamma=0.2, noise_std=0.0)
+
+    # rank 3 = the two physical modes plus the forcing: a noise-free linear
+    # oscillator has true rank 2, so higher ranks would regress on numerical
+    # junk modes and couple them into the simulation.
+    _, _, s, vt = havok_svd(x, delays=40)
+    a, b, z, u = identify_havok(t, s, vt, rank=3)
+    t_z = t[: z.shape[1]]
+    z_sim = simulate_havok(a, b, u, t_z, z[:, 0])
+
+    assert z_sim.shape == z.shape
+    assert np.all(np.isfinite(z_sim))
+    # The simulated dominant mode should stay correlated with the extracted
+    # one; finite-difference identification drifts slightly in phase, so this
+    # is a smoke bound, not an accuracy claim.
+    corr = np.corrcoef(z_sim[0], z[0])[0, 1]
+    assert corr > 0.75
 
 
 def test_sindy_parameter_extraction_with_feature_names():
@@ -82,7 +102,7 @@ def test_euler_bernoulli_material_estimate_roundtrip():
     assert np.isclose(recovered_young, young_pa, rtol=1e-12)
 
     by_young = rank_materials_by_young(recovered_young)
-    assert by_young[0].candidate.name in {"Acrilico", "Poliestireno"}
+    assert by_young[0].candidate.name in {"Acrylic (PMMA)", "Polystyrene"}
 
     by_frequency = rank_materials_by_frequency(geometry, frequency_hz=frequency)
-    assert by_frequency[0].candidate.name == "Poliestireno"
+    assert by_frequency[0].candidate.name == "Polystyrene"

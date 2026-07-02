@@ -18,12 +18,14 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from vibration_id.pipeline import decimate, load_clean_signal
+from vibration_id.pipeline import load_clean_signal
 from vibration_id.preprocessing import velocity_savgol, wavelet_denoise
 from vibration_id.sensor_residual import (
     evaluate_residual_surface,
     fit_residual_surface,
+    fit_static_nonlinearity,
     linear_dynamics_residual,
+    simulate_linear_state,
 )
 from vibration_id.spectral import compute_fft
 
@@ -42,7 +44,12 @@ def parse_args() -> argparse.Namespace:
         default=ROOT / "figures" / "generated" / "sensor",
         help="Output directory for generated figures.",
     )
-    parser.add_argument("--max-samples", type=int, default=20000, help="Limit samples for speed.")
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=40000,
+        help="Contiguous full-rate samples to analyze (derivative-based fits need a uniform grid).",
+    )
     return parser.parse_args()
 
 
@@ -51,7 +58,12 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
 
     cleaned = load_clean_signal(args.csv, denoise=False)
-    t, x = decimate(cleaned.t, cleaned.raw, args.max_samples)
+    # A contiguous full-rate window, NOT a strided decimation: the previous
+    # linspace-based decimation produced a non-uniform grid (stride jitter)
+    # that biased the identified stiffness ~35% low (4.04 Hz vs the 4.98 Hz
+    # spectral peak).
+    t = cleaned.t[: args.max_samples]
+    x = cleaned.raw[: args.max_samples]
     onset = cleaned.onset
     dt = float(np.median(np.diff(t)))
 
@@ -108,7 +120,50 @@ def main() -> None:
     fig.savefig(args.out / "sensor_residual_phase_space.png", dpi=160)
     plt.close(fig)
 
-    # 4. Response-surface slice r(q, v=0)
+    # 4. Static nonlinearity: position residual vs simulated linear state
+    #    (the original testes.py analysis behind sensor_nonlinearity_fit.png)
+    q_sim, v_sim = simulate_linear_state(res.omega0_sq, res.gamma, q0=float(q[0]), v0=float(v[0]), t=t)
+    position_residual = x - q_sim
+    h_coeffs = fit_static_nonlinearity(q_sim, position_residual, degree=3)
+    h0, h1, h2, h3 = h_coeffs
+    print("static nonlinearity fit h(x) to the position residual:")
+    print(f"  a0={h0:.4e} a1={h1:.4e} a2={h2:.4e} a3={h3:.4e}")
+
+    x_grid = np.linspace(float(np.min(q_sim)), float(np.max(q_sim)), 400)
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.scatter(q_sim, position_residual, s=2, alpha=0.2, color="tab:blue", label="Position residual")
+    ax.plot(x_grid, np.polynomial.polynomial.polyval(x_grid, h_coeffs), "r", linewidth=2, label="h(x) cubic fit")
+    ax.set_xlabel("Simulated linear state $x_{model}$")
+    ax.set_ylabel("Residual $r$")
+    ax.set_title("Static sensor-nonlinearity fit")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(args.out / "sensor_nonlinearity_fit.png", dpi=160)
+    plt.close(fig)
+
+    # 5. Linear-model subtraction overview: time overlay + phase portrait
+    fig, (ax_time, ax_phase) = plt.subplots(1, 2, figsize=(12, 5))
+    ax_time.plot(t, x, color="gray", alpha=0.6, linewidth=0.6, label="Experimental")
+    ax_time.plot(t, q_sim, "r--", linewidth=1.2, label="Linear model")
+    ax_time.set_xlabel("Time [s]")
+    ax_time.set_ylabel("Position")
+    ax_time.set_title("Experimental signal vs identified linear model")
+    ax_time.legend()
+    ax_time.grid(True, alpha=0.3)
+
+    ax_phase.plot(res.q, res.v, color="gray", alpha=0.5, linewidth=0.5, label="Experimental")
+    ax_phase.plot(q_sim, v_sim, "r--", linewidth=1.0, label="Linear model")
+    ax_phase.set_xlabel("Position $x$")
+    ax_phase.set_ylabel("Velocity $\\dot{x}$")
+    ax_phase.set_title("Phase portrait: linear dynamic structure")
+    ax_phase.legend()
+    ax_phase.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(args.out / "sindy_linear_model_subtraction.png", dpi=160)
+    plt.close(fig)
+
+    # 6. Response-surface slice r(q, v=0)
     q_grid = np.linspace(float(np.min(res.q)), float(np.max(res.q)), 400)
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.plot(q_grid, evaluate_residual_surface(surface, q_grid, np.zeros_like(q_grid)), color="tab:blue")

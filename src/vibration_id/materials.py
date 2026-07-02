@@ -50,15 +50,15 @@ class MaterialFrequencyMatch:
 
 
 DEFAULT_MATERIALS = (
-    MaterialCandidate("Polietileno", 0.2, 0.7, 950.0),
-    MaterialCandidate("Polipropileno", 1.3, 1.8, 900.0),
+    MaterialCandidate("Polyethylene", 0.2, 0.7, 950.0),
+    MaterialCandidate("Polypropylene", 1.3, 1.8, 900.0),
     MaterialCandidate("ABS", 1.8, 2.4, 1040.0),
     MaterialCandidate("PVC", 2.4, 4.0, 1400.0),
-    MaterialCandidate("Acrilico", 2.7, 3.5, 1180.0),
-    MaterialCandidate("Poliestireno", 3.0, 3.5, 1050.0),
-    MaterialCandidate("Aluminio", 68.0, 72.0, 2700.0),
-    MaterialCandidate("Aco inox", 190.0, 210.0, 7900.0),
-    MaterialCandidate("Aco carbono", 190.0, 210.0, 7850.0),
+    MaterialCandidate("Acrylic (PMMA)", 2.7, 3.5, 1180.0),
+    MaterialCandidate("Polystyrene", 3.0, 3.5, 1050.0),
+    MaterialCandidate("Aluminum", 68.0, 72.0, 2700.0),
+    MaterialCandidate("Stainless steel", 190.0, 210.0, 7900.0),
+    MaterialCandidate("Carbon steel", 190.0, 210.0, 7850.0),
 )
 
 

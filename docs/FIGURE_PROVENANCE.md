@@ -6,20 +6,27 @@ notes whether it is **reproducible** today by a script in this repo.
 
 Association-confidence legend: ✅ high · 🟡 likely · ❔ uncertain.
 
+**Update (July 2026):** after the identification-pipeline fixes, the curated
+figures marked *regenerated 2026-07* below were re-exported by the repo scripts
+(English titles, corrected linear/Duffing/PINN identification). The "Original
+source" column still records where each analysis came from; the original loose
+files remain the historical reference.
+
 ## `figures/generated/` — reproducible now
 
 | Figure | Script in this repo |
 | --- | --- |
 | `signal.png`, `fft.png`, `envelope_fit.png`, `cwt_scalogram.png` | `scripts/run_basic_analysis.py` |
 | `sensor/dynamics_plus_sensor_fit.png`, `sensor/sensor_output_map.png` | `scripts/run_sensor_identification.py` |
+| `sensor/sensor_nonlinearity_fit.png`, `sensor/sensor_residual_*.png` | `scripts/run_sensor_residual.py` |
 
 ## `figures/main/` — original workflow
 
 | Figure | Original source | Loose file | Reproducible |
 | --- | --- | --- | --- |
 | `01_signal.png` | `final.ipynb` (signal view) | `Sinal.png` 🟡 | `run_basic_analysis.py` |
-| `01_noisy_vs_filtered_signal.png` | `completo.py` / `wav.py` | `linear.png` ❔ | partial |
-| `02_fft.png` | `fft.py` / `final.ipynb` | `fft.png`, `fft_dado_15.png` 🟡 | `run_basic_analysis.py` |
+| `01_noisy_vs_filtered_signal.png` | `completo.py` / `wav.py` | `linear.png` ❔ | **yes** — `run_basic_analysis.py` (regenerated 2026-07) |
+| `02_fft.png` | `fft.py` / `final.ipynb` | `fft.png`, `fft_dado_15.png` 🟡 | **yes** — `run_basic_analysis.py` (regenerated 2026-07) |
 | `03_cwt.png` | `Scalograma.py` / `recon.py` | `CWT.png` ✅ | `run_basic_analysis.py` |
 | `04_hilbert_envelope.png` | `Hilbert.py` / `envelope.py` | `envelope_hilbert.png` ✅ | `run_basic_analysis.py` |
 | `05_gamma_fit.png` | `envelope.py` | `Gama.png`, `ajuste_gama.png` ✅ | partial |
@@ -32,21 +39,21 @@ Association-confidence legend: ✅ high · 🟡 likely · ❔ uncertain.
 
 | Figure | Original source | Loose file | Reproducible |
 | --- | --- | --- | --- |
-| `havok_reconstruction.png` | `recon.py` | `havok.png` ✅ | via `havok.py` |
-| `sindy_identification.png` | `sindy_tratado.py` / `Synd.py` | `sindy.png` ✅ | via `sindy_model.py` / `run_advanced_analysis.py` |
-| `pinn_inverse_problem.png` | `PINN.py` | `probema inverso.png` 🟡 | via `pinn.py` / `run_advanced_analysis.py --run-pinn` |
+| `havok_reconstruction.png` | `recon.py` | `havok.png` ✅ | **yes** — `run_advanced_analysis.py` (regenerated 2026-07) |
+| `sindy_identification.png` | `sindy_tratado.py` / `Synd.py` | `sindy.png` ✅ | **yes** — `run_advanced_analysis.py` (regenerated 2026-07) |
+| `pinn_inverse_problem.png` | `PINN.py` / `novo_pipeline/Pinn.py` | `probema inverso.png` 🟡 | **yes** — `run_advanced_analysis.py --run-pinn` (regenerated 2026-07; now the two-stage fit on the inox sample with parameter convergence) |
 | `duffing_global_envelope_fit.png` | `prof/definitivo.ipynb` (global optimization, narrative §11) | `ajusteglobal.png` ✅ | **yes** — `scripts/run_global_fit.py` |
 
 ## `figures/sensor/`
 
 | Figure | Original source | Loose file | Reproducible |
 | --- | --- | --- | --- |
-| `sensor_nonlinearity_fit.png` | `sss.ipynb` (output map `h(q)`) | `nonlinear.png` ✅ | via `run_sensor_identification.py` |
-| `sindy_linear_model_subtraction.png` | `completo.py` (linear residual) | `res1.png`, `res2.png` ✅ | via `run_sensor_residual.py` |
-| `sensor_residual_signature.png` | `completo.py` | — | via `run_sensor_residual.py` |
-| `sensor_residual_spectrum.png` | `completo.py` | — | via `run_sensor_residual.py` |
-| `sensor_residual_phase_space.png` | `completo.py` | — | via `run_sensor_residual.py` |
-| `sensor_response_surface_slice.png` | `completo.py` / `model.py` | — | via `run_sensor_residual.py` |
+| `sensor_nonlinearity_fit.png` | `testes.py` (position residual vs simulated linear state, cubic fit) | `nonlinear.png` ✅ | **yes** — `run_sensor_residual.py` (regenerated 2026-07) |
+| `sindy_linear_model_subtraction.png` | `completo.py` / `testes.py` (linear residual) | `res1.png`, `res2.png` ✅ | **yes** — `run_sensor_residual.py` (regenerated 2026-07) |
+| `sensor_residual_signature.png` | `completo.py` | — | **yes** — `run_sensor_residual.py` (regenerated 2026-07) |
+| `sensor_residual_spectrum.png` | `completo.py` | — | **yes** — `run_sensor_residual.py` (regenerated 2026-07) |
+| `sensor_residual_phase_space.png` | `completo.py` | — | **yes** — `run_sensor_residual.py` (regenerated 2026-07) |
+| `sensor_response_surface_slice.png` | `completo.py` / `model.py` | — | **yes** — `run_sensor_residual.py` (regenerated 2026-07) |
 | `sensor_residual_projection(_3d).png` | SVD projections of the residual | — | 🟡 variation (same residual, different projection) |
 
 ## `figures/setup/` — photos
@@ -68,7 +75,15 @@ Every headline figure family now has a reproducible script:
 - **Sensor residual** (`sensor_residual_*`, `sensor_response_surface_slice.png`,
   `sindy_linear_model_subtraction.png`) — ported from `completo.py` into
   `sensor_residual.py` + `run_sensor_residual.py`, **with the `DT=1000` bug
-  fixed** (see `ORIGINAL_CODE_AUDIT.md`).
+  fixed** (see `ORIGINAL_CODE_AUDIT.md`). The linear model is identified on a
+  contiguous full-rate window: the strided decimation used in an earlier port
+  jittered the time grid and biased the frequency ~20% low (4.04 vs 4.98 Hz).
+- **Static sensor nonlinearity** (`sensor_nonlinearity_fit.png`) — originally
+  produced by `testes.py` (not `sss.ipynb` as previously recorded): simulate
+  the identified linear model, take the position residual
+  `measured − simulated` and fit a cubic against the simulated state. Ported as
+  `simulate_linear_state` + `fit_static_nonlinearity` in `sensor_residual.py`,
+  regenerated by `run_sensor_residual.py`.
 
 Note: `sensor_residual_projection(_3d).png` are just alternative (SVD)
 projections of the same already-reproduced residual; they were not replicated

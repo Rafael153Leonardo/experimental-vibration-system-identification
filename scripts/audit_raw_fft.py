@@ -180,8 +180,8 @@ def main() -> None:
 
     results_path = args.out_dir / "raw_fft_audit.csv"
     summary_path = args.out_dir / "raw_fft_group_summary.csv"
-    results.to_csv(results_path, index=False)
-    summary.to_csv(summary_path, index=False)
+    results.to_csv(results_path, index=False, lineterminator="\n")
+    summary.to_csv(summary_path, index=False, lineterminator="\n")
 
     print("Raw FFT audit")
     print(f"root: {root}")

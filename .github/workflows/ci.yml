@@ -28,3 +28,24 @@ jobs:
         run: ruff format --check src tests scripts
       - name: Tests
         run: pytest -q
+
+  test-advanced:
+    # Exercises the optional pysindy/torch paths (they are skipped in the
+    # matrix job above); a silent pysindy break once went unnoticed because
+    # CI never installed the advanced extras.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install -r requirements-dev.txt
+          pip install "pysindy>=2"
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Tests (with pysindy + torch)
+        run: pytest -q
