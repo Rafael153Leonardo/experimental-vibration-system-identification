@@ -237,7 +237,7 @@ def train_two_stage_pinn(t: np.ndarray, x: np.ndarray, config: PinnTrainingConfi
         loss = data_loss + config.physics_weight * physics_loss
         loss.backward()
         optimizer1.step()
-        if epoch == config.stage1_epochs - 1:
+        if epoch % 25 == 0 or epoch == config.stage1_epochs - 1:
             history.append(
                 {
                     "stage": 1.0,
@@ -245,6 +245,9 @@ def train_two_stage_pinn(t: np.ndarray, x: np.ndarray, config: PinnTrainingConfi
                     "loss": float(loss.detach().cpu()),
                     "data_loss": float(data_loss.detach().cpu()),
                     "physics_loss": float(physics_loss.detach().cpu()),
+                    "mu": float(model.mu.detach().cpu()),
+                    "alpha": float(model.alpha.detach().cpu()),
+                    "stiffness_over_mass": float(model.stiffness_over_mass.detach().cpu()),
                 }
             )
 
@@ -259,14 +262,17 @@ def train_two_stage_pinn(t: np.ndarray, x: np.ndarray, config: PinnTrainingConfi
         loss = data_loss + config.physics_weight * physics_loss
         loss.backward()
         optimizer2.step()
-        if epoch == config.stage2_epochs - 1:
+        if epoch % 25 == 0 or epoch == config.stage2_epochs - 1:
             history.append(
                 {
                     "stage": 2.0,
-                    "epoch": float(epoch + 1),
+                    "epoch": float(config.stage1_epochs + epoch + 1),
                     "loss": float(loss.detach().cpu()),
                     "data_loss": float(data_loss.detach().cpu()),
                     "physics_loss": float(physics_loss.detach().cpu()),
+                    "mu": float(model.mu.detach().cpu()),
+                    "alpha": float(model.alpha.detach().cpu()),
+                    "stiffness_over_mass": float(model.stiffness_over_mass.detach().cpu()),
                 }
             )
 

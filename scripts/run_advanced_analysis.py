@@ -10,9 +10,9 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from vibration_id.havok import havok_svd, identify_havok
+from vibration_id.havok import havok_svd, identify_havok, simulate_havok
 from vibration_id.pinn import PinnTrainingConfig, pinn_available, predict, train_two_stage_pinn
-from vibration_id.pipeline import decimate, load_clean_signal
+from vibration_id.pipeline import load_clean_signal
 from vibration_id.sindy_model import fit_linear_sindy, physical_params_from_sindy, state_from_position
 
 
@@ -30,14 +30,16 @@ def parse_args() -> argparse.Namespace:
         default=ROOT / "figures" / "generated" / "advanced",
         help="Output directory for generated advanced figures.",
     )
-    parser.add_argument("--max-samples", type=int, default=3000, help="Maximum samples for advanced methods.")
     parser.add_argument(
-        "--sindy-samples",
+        "--id-samples",
         type=int,
         default=9000,
-        help="Contiguous full-rate samples for SINDy (derivative-based identification needs the full sampling rate).",
+        help=(
+            "Contiguous full-rate samples used by HAVOK and SINDy "
+            "(derivative-based identification needs the full sampling rate)."
+        ),
     )
-    parser.add_argument("--havok-delays", type=int, default=120, help="Number of Hankel delays.")
+    parser.add_argument("--havok-delays", type=int, default=500, help="Number of Hankel delays.")
     parser.add_argument("--havok-rank", type=int, default=6, help="HAVOK reduced rank.")
     parser.add_argument("--run-pinn", action="store_true", help="Train the optional PyTorch PINN model.")
     parser.add_argument(
@@ -76,6 +78,46 @@ def save_havok_figures(out: Path, t: np.ndarray, singular_values: np.ndarray, fo
     plt.close(fig)
 
 
+def save_havok_reconstruction(
+    out: Path,
+    t_z: np.ndarray,
+    z_state: np.ndarray,
+    z_sim: np.ndarray,
+    Vt: np.ndarray,
+) -> None:
+    """Mode-1 reconstruction from the identified model plus latent portraits."""
+
+    fig = plt.figure(figsize=(12, 8))
+    grid = fig.add_gridspec(2, 2)
+
+    ax_top = fig.add_subplot(grid[0, :])
+    ax_top.plot(t_z, z_state[0], color="gray", linewidth=0.8, label="Mode 1 (extracted)")
+    ax_top.plot(t_z, z_sim[0], "r--", linewidth=0.9, label="Mode 1 (simulated model)")
+    ax_top.set_xlabel("Time [s]")
+    ax_top.set_ylabel("Normalized amplitude")
+    ax_top.set_title("HAVOK reconstruction of the dominant mode")
+    ax_top.legend()
+    ax_top.grid(True, alpha=0.3)
+
+    ax_v12 = fig.add_subplot(grid[1, 0])
+    ax_v12.plot(Vt[0], Vt[1], color="tab:green", linewidth=0.5)
+    ax_v12.set_xlabel("$v_1$")
+    ax_v12.set_ylabel("$v_2$")
+    ax_v12.set_title("Latent variables ($v_1$ vs $v_2$)")
+    ax_v12.grid(True, alpha=0.3)
+
+    ax_v13 = fig.add_subplot(grid[1, 1])
+    ax_v13.plot(Vt[0], Vt[2], color="tab:purple", linewidth=0.5)
+    ax_v13.set_xlabel("$v_1$")
+    ax_v13.set_ylabel("$v_3$")
+    ax_v13.set_title("Hidden coupling ($v_1$ vs $v_3$)")
+    ax_v13.grid(True, alpha=0.3)
+
+    fig.tight_layout()
+    fig.savefig(out / "havok_reconstruction.png", dpi=160)
+    plt.close(fig)
+
+
 def save_sindy_plot(out: Path, t: np.ndarray, x: np.ndarray, simulation: np.ndarray) -> None:
     fig, ax = plt.subplots(figsize=(9, 4))
     ax.plot(t, x, color="black", alpha=0.35, label="Real signal")
@@ -90,15 +132,41 @@ def save_sindy_plot(out: Path, t: np.ndarray, x: np.ndarray, simulation: np.ndar
     plt.close(fig)
 
 
-def save_pinn_plot(out: Path, t: np.ndarray, x: np.ndarray, x_pred: np.ndarray) -> None:
-    fig, ax = plt.subplots(figsize=(9, 4))
-    ax.plot(t, x, color="black", alpha=0.25, label="Real signal")
-    ax.plot(t, x_pred, color="tab:red", linestyle="--", label="PINN")
-    ax.set_xlabel("Time [s]")
-    ax.set_ylabel("Signal")
-    ax.set_title("Two-stage PINN fit")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+def save_pinn_plot(
+    out: Path,
+    t: np.ndarray,
+    x: np.ndarray,
+    x_pred: np.ndarray,
+    history: list[dict[str, float]],
+) -> None:
+    fig, (ax_fit, ax_conv) = plt.subplots(1, 2, figsize=(13, 4.5), gridspec_kw={"width_ratios": [3, 2]})
+
+    ax_fit.plot(t, x, color="black", alpha=0.3, label="Real signal")
+    ax_fit.plot(t, x_pred, color="tab:red", linestyle="--", label="PINN")
+    ax_fit.set_xlabel("Time [s]")
+    ax_fit.set_ylabel("Signal")
+    ax_fit.set_title("Two-stage PINN fit")
+    ax_fit.legend()
+    ax_fit.grid(True, alpha=0.3)
+
+    epochs = [h["epoch"] for h in history]
+    freq = [float(np.sqrt(max(h["stiffness_over_mass"], 0.0)) / (2.0 * np.pi)) for h in history]
+    mu = [h["mu"] for h in history]
+    stage2_start = next((h["epoch"] for h in history if h["stage"] == 2.0), None)
+
+    ax_conv.plot(epochs, freq, color="tab:blue", label="frequency [Hz]")
+    ax_conv.set_xlabel("Epoch (Adam)")
+    ax_conv.set_ylabel("Frequency [Hz]", color="tab:blue")
+    ax_conv.tick_params(axis="y", labelcolor="tab:blue")
+    ax_mu = ax_conv.twinx()
+    ax_mu.plot(epochs, mu, color="tab:orange", label="$\\mu$")
+    ax_mu.set_ylabel("Damping $\\mu$", color="tab:orange")
+    ax_mu.tick_params(axis="y", labelcolor="tab:orange")
+    if stage2_start is not None:
+        ax_conv.axvline(stage2_start, color="gray", linestyle=":", linewidth=1, label="stage 2 starts")
+    ax_conv.set_title("Physical-parameter convergence")
+    ax_conv.grid(True, alpha=0.3)
+
     fig.tight_layout()
     fig.savefig(out / "pinn_fit.png", dpi=160)
     plt.close(fig)
@@ -110,18 +178,25 @@ def main() -> None:
 
     cleaned = load_clean_signal(args.csv)
     t, x, onset = cleaned.t, cleaned.clean, cleaned.onset
-    t_small, x_small = decimate(t, x, args.max_samples)
+    # Contiguous full-rate window shared by HAVOK and SINDy: strided
+    # decimation would leave too few samples per period, biasing both the
+    # Hankel regression and the finite-difference derivatives.
+    t_id = t[: args.id_samples]
+    x_id = x[: args.id_samples]
     print("Advanced vibration analysis")
     print(f"source: {args.csv}")
     print(f"onset_index: {onset}")
-    print(f"samples_used: {len(t_small)}")
+    print(f"samples_used: {len(t_id)}")
 
-    delays = min(args.havok_delays, max(10, len(x_small) // 4))
-    H, U, S, Vt = havok_svd(x_small, delays=delays)
+    delays = min(args.havok_delays, max(10, len(x_id) // 4))
+    H, U, S, Vt = havok_svd(x_id, delays=delays)
     rank = min(args.havok_rank, len(S), delays)
-    A, B, z_state, u_state = identify_havok(t_small, S, Vt, rank=rank)
+    A, B, z_state, u_state = identify_havok(t_id, S, Vt, rank=rank)
     energy = float(np.sum(S[:rank] ** 2) / np.sum(S**2))
-    save_havok_figures(args.out, t_small, S, u_state.ravel())
+    save_havok_figures(args.out, t_id, S, u_state.ravel())
+    t_z = t_id[: z_state.shape[1]]
+    z_sim = simulate_havok(A, B, u_state, t_z, z_state[:, 0])
+    save_havok_reconstruction(args.out, t_z, z_state, z_sim, Vt)
     print("HAVOK")
     print(f"  hankel_shape: {H.shape}")
     print(f"  rank: {rank}")
@@ -130,12 +205,7 @@ def main() -> None:
     print(f"  B_shape: {B.shape}")
 
     try:
-        # SINDy works on a contiguous full-rate window: strided decimation
-        # leaves too few samples per period, and finite-difference derivatives
-        # on such a grid bias the identified stiffness strongly low. The savgol
-        # window must also stay well under one oscillation period.
-        t_id = t[: args.sindy_samples]
-        x_id = x[: args.sindy_samples]
+        # The savgol window must stay well under one oscillation period.
         state = state_from_position(t_id, x_id, method="savgol", window_length=21, polyorder=3)
         dt = float(np.median(np.diff(t_id)))
         model = fit_linear_sindy([state], dt=dt, threshold=0.01, alpha=0.05)
@@ -166,7 +236,7 @@ def main() -> None:
             pinn_cleaned = load_clean_signal(args.pinn_csv)
             result = train_two_stage_pinn(pinn_cleaned.t, pinn_cleaned.clean, config)
             x_pred = predict(result.model, result.t_train)
-            save_pinn_plot(args.out, result.t_train, result.x_train, x_pred)
+            save_pinn_plot(args.out, result.t_train, result.x_train, x_pred, result.history)
             print("PINN")
             print(f"  source: {args.pinn_csv}")
             print(f"  device: {result.device}")

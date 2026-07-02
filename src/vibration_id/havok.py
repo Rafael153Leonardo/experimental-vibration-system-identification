@@ -30,12 +30,41 @@ def identify_havok(t: np.ndarray, S: np.ndarray, Vt: np.ndarray, *, rank: int = 
     u = Z[-1, :]
     dt = float(np.median(np.diff(t)))
 
-    z_dot = (z[:, 1:] - z[:, :-1]) / dt
-    z_state = z[:, :-1]
-    u_state = u[:-1][None, :]
+    # Central differences: a forward difference lags the state by half a
+    # sample, which the regression absorbs as artificial damping (the
+    # simulated modes then decay orders of magnitude too fast).
+    z_dot = np.gradient(z, dt, axis=1, edge_order=2)
+    z_state = z
+    u_state = u[None, :]
     reg = np.vstack([z_state, u_state])
     AB = z_dot @ np.linalg.pinv(reg)
 
     A = AB[:, :-1]
     B = AB[:, -1][:, None]
     return A, B, z_state, u_state
+
+
+def simulate_havok(
+    A: np.ndarray,
+    B: np.ndarray,
+    u: np.ndarray,
+    t: np.ndarray,
+    z0: np.ndarray,
+) -> np.ndarray:
+    """Integrate ``z' = A z + B u`` with the recorded forcing ``u(t)``.
+
+    Returns the simulated latent trajectory with shape ``(len(z0), len(t))``,
+    for comparing the identified HAVOK model against the extracted modes.
+    """
+
+    from scipy.integrate import solve_ivp
+
+    t = np.asarray(t, dtype=float)
+    u = np.asarray(u, dtype=float).ravel()
+    b = np.asarray(B, dtype=float).ravel()
+
+    def rhs(ti: float, z: np.ndarray) -> np.ndarray:
+        return A @ z + b * np.interp(ti, t, u)
+
+    sol = solve_ivp(rhs, (float(t[0]), float(t[-1])), np.asarray(z0, dtype=float), t_eval=t, rtol=1e-6, atol=1e-9)
+    return sol.y
