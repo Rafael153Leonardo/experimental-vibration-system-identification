@@ -12,6 +12,7 @@ from vibration_id.pipeline import load_clean_signal
 from vibration_id.plotting import (
     save_envelope_plot,
     save_fft_plot,
+    save_noisy_vs_filtered_plot,
     save_scalogram_plot,
     save_signal_plot,
 )
@@ -44,13 +45,13 @@ def main() -> None:
 
     if args.csv.exists():
         cleaned = load_clean_signal(args.csv)
-        t, x_clean, onset = cleaned.t, cleaned.clean, cleaned.onset
+        t, x_raw, x_clean, onset = cleaned.t, cleaned.raw, cleaned.clean, cleaned.onset
         source = str(args.csv)
     else:
-        t, x = damped_oscillator()
-        x = remove_dc_offset(x, mode="tail")
-        t, x, onset = crop_from_onset(t, x, safety_samples=5)
-        x_clean = wavelet_denoise(x, wavelet="db8", level=2)
+        t, x_raw = damped_oscillator()
+        x_raw = remove_dc_offset(x_raw, mode="tail")
+        t, x_raw, onset = crop_from_onset(t, x_raw, safety_samples=5)
+        x_clean = wavelet_denoise(x_raw, wavelet="db8", level=2)
         source = "synthetic"
 
     f0 = dominant_frequency(t, x_clean, fmin=1.0, fmax=80.0)
@@ -60,6 +61,7 @@ def main() -> None:
     cwt_freqs, _, power = cwt_scalogram(t, x_clean, fmin=1.0, fmax=80.0)
 
     save_signal_plot(t, x_clean, args.out / "signal.png", title="Clean vibration signal")
+    save_noisy_vs_filtered_plot(t, x_raw, x_clean, args.out / "noisy_vs_filtered.png")
     save_fft_plot(freqs, amp, args.out / "fft.png", fmax=80.0)
     save_envelope_plot(t, x_clean, damping.envelope, damping.model, args.out / "envelope_fit.png")
     save_scalogram_plot(t, cwt_freqs, power, args.out / "cwt_scalogram.png")

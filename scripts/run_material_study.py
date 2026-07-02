@@ -152,7 +152,9 @@ def main() -> None:
             if key is not None and key not in fieldnames:
                 fieldnames.append(key)
     with args.out.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        # LF explicitly: csv defaults to \r\n, which fights .gitattributes
+        # (eol=lf) and dirties the tree whenever the script reruns on Windows.
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows({key: value for key, value in result.items() if key is not None} for result in results)
 

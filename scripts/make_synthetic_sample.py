@@ -15,7 +15,7 @@ def main() -> None:
     out = ROOT / "data" / "synthetic" / "synthetic_damped_oscillator.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     t, x = damped_oscillator()
-    pd.DataFrame({"time_s": t, "signal": x}).to_csv(out, index=False)
+    pd.DataFrame({"time_s": t, "signal": x}).to_csv(out, index=False, lineterminator="\n")
     print(out)
 
 
