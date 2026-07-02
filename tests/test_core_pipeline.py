@@ -82,7 +82,7 @@ def test_euler_bernoulli_material_estimate_roundtrip():
     assert np.isclose(recovered_young, young_pa, rtol=1e-12)
 
     by_young = rank_materials_by_young(recovered_young)
-    assert by_young[0].candidate.name in {"Acrilico", "Poliestireno"}
+    assert by_young[0].candidate.name in {"Acrylic (PMMA)", "Polystyrene"}
 
     by_frequency = rank_materials_by_frequency(geometry, frequency_hz=frequency)
-    assert by_frequency[0].candidate.name == "Poliestireno"
+    assert by_frequency[0].candidate.name == "Polystyrene"
