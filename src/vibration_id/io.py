@@ -111,4 +111,4 @@ def save_signal_csv(data: pd.DataFrame, path: str | Path) -> None:
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    data.to_csv(path, index=False)
+    data.to_csv(path, index=False, lineterminator="\n")
