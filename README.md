@@ -59,7 +59,7 @@ full investigation is in [`docs/ORIGINAL_CODE_AUDIT.md`](docs/ORIGINAL_CODE_AUDI
 
 **Hardware & engineering**
 - Modified TCRT5000 reflective optical sensor + Arduino Uno (~1 kHz), raw streaming over serial
-- Typed, modular package · 39 regression tests · ruff lint + format · GitHub Actions CI (3.10 / 3.12 + a job with the pysindy/torch extras)
+- Typed, modular package · 40 regression tests · ruff lint + format · GitHub Actions CI (3.10 / 3.12 + a job with the pysindy/torch extras)
 
 ## Quick start
 
