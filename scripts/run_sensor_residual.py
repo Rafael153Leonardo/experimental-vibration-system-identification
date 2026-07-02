@@ -122,7 +122,7 @@ def main() -> None:
 
     # 4. Static nonlinearity: position residual vs simulated linear state
     #    (the original testes.py analysis behind sensor_nonlinearity_fit.png)
-    q_sim, _ = simulate_linear_state(res.omega0_sq, res.gamma, q0=float(q[0]), v0=float(v[0]), t=t)
+    q_sim, v_sim = simulate_linear_state(res.omega0_sq, res.gamma, q0=float(q[0]), v0=float(v[0]), t=t)
     position_residual = x - q_sim
     h_coeffs = fit_static_nonlinearity(q_sim, position_residual, degree=3)
     h0, h1, h2, h3 = h_coeffs
@@ -142,7 +142,28 @@ def main() -> None:
     fig.savefig(args.out / "sensor_nonlinearity_fit.png", dpi=160)
     plt.close(fig)
 
-    # 5. Response-surface slice r(q, v=0)
+    # 5. Linear-model subtraction overview: time overlay + phase portrait
+    fig, (ax_time, ax_phase) = plt.subplots(1, 2, figsize=(12, 5))
+    ax_time.plot(t, x, color="gray", alpha=0.6, linewidth=0.6, label="Experimental")
+    ax_time.plot(t, q_sim, "r--", linewidth=1.2, label="Linear model")
+    ax_time.set_xlabel("Time [s]")
+    ax_time.set_ylabel("Position")
+    ax_time.set_title("Experimental signal vs identified linear model")
+    ax_time.legend()
+    ax_time.grid(True, alpha=0.3)
+
+    ax_phase.plot(res.q, res.v, color="gray", alpha=0.5, linewidth=0.5, label="Experimental")
+    ax_phase.plot(q_sim, v_sim, "r--", linewidth=1.0, label="Linear model")
+    ax_phase.set_xlabel("Position $x$")
+    ax_phase.set_ylabel("Velocity $\\dot{x}$")
+    ax_phase.set_title("Phase portrait: linear dynamic structure")
+    ax_phase.legend()
+    ax_phase.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(args.out / "sindy_linear_model_subtraction.png", dpi=160)
+    plt.close(fig)
+
+    # 6. Response-surface slice r(q, v=0)
     q_grid = np.linspace(float(np.min(res.q)), float(np.max(res.q)), 400)
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.plot(q_grid, evaluate_residual_surface(surface, q_grid, np.zeros_like(q_grid)), color="tab:blue")
