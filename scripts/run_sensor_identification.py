@@ -1,9 +1,14 @@
 """Reproduce the dynamics + sensor-output-map identification.
 
 This is the cleaned, reproducible version of the original ``sss.ipynb`` workflow
-(see ``docs/ORIGINAL_CODE_AUDIT.md``). It separates the mechanical Duffing
-dynamics from the static sensor nonlinearity ``h(q)`` and saves the figures that
-back the ``figures/sensor`` story.
+(see ``docs/ORIGINAL_CODE_AUDIT.md``): a free-Duffing model for the mechanical
+dynamics plus a static polynomial output map ``h(q)`` for the sensor.
+
+Honest caveat: with a single sensor channel the "true" displacement ``q`` has to
+be reconstructed from the same measurement (wavelet denoising), so the fitted
+``h(q)`` is expected to stay close to the identity — the substantive result here
+is the identified dynamics. The evidence for the sensor nonlinearity comes from
+the residual analysis in ``run_sensor_residual.py``.
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from vibration_id.nonlinear_id import identify_duffing, identify_sensor_map, simulate_model
-from vibration_id.pipeline import decimate, load_clean_signal
+from vibration_id.pipeline import load_clean_signal
 from vibration_id.preprocessing import velocity_savgol, wavelet_denoise
 
 
@@ -37,7 +42,12 @@ def parse_args() -> argparse.Namespace:
         default=ROOT / "figures" / "generated" / "sensor",
         help="Output directory for generated figures.",
     )
-    parser.add_argument("--max-samples", type=int, default=20000, help="Limit samples for speed.")
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=40000,
+        help="Contiguous full-rate samples to analyze (derivative-based fits need a uniform grid).",
+    )
     return parser.parse_args()
 
 
@@ -46,7 +56,10 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
 
     cleaned = load_clean_signal(args.csv, denoise=False)
-    t, x_raw = decimate(cleaned.t, cleaned.raw, args.max_samples)
+    # Contiguous full-rate window; strided decimation jitters the grid and
+    # biases derivative-based identification (see run_sensor_residual.py).
+    t = cleaned.t[: args.max_samples]
+    x_raw = cleaned.raw[: args.max_samples]
     onset = cleaned.onset
     dt = float(np.median(np.diff(t)))
 
@@ -72,6 +85,8 @@ def main() -> None:
     a0, a1, a2, a3 = sensor.coefficients
     print(f"  a0={a0:.4e} a1={a1:.4e} a2={a2:.4e} a3={a3:.4e}")
     print(f"  nonlinearity_strength: {sensor.nonlinearity_strength:.4f}")
+    print("  (h is fit against the denoised signal itself, so ~identity is expected;")
+    print("   the sensor-nonlinearity evidence lives in run_sensor_residual.py)")
 
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.plot(t, x_raw, color="black", alpha=0.3, label="Measured signal")
@@ -91,7 +106,7 @@ def main() -> None:
     ax.plot(q_grid, q_grid, color="gray", linestyle=":", label="linear reference")
     ax.set_xlabel("True displacement q")
     ax.set_ylabel("Sensor output h(q)")
-    ax.set_title("Identified sensor nonlinearity")
+    ax.set_title("Identified sensor output map (near-identity expected)")
     ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()

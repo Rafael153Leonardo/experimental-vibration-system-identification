@@ -65,6 +65,46 @@ def linear_dynamics_residual(q: np.ndarray, v: np.ndarray, *, dt: float) -> Line
     )
 
 
+def simulate_linear_state(
+    omega0_sq: float,
+    gamma: float,
+    *,
+    q0: float,
+    v0: float,
+    t: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Integrate the identified linear oscillator from the measured initial state."""
+
+    from scipy.integrate import odeint
+
+    t = np.asarray(t, dtype=float)
+
+    def rhs(state: np.ndarray, _t: float) -> list[float]:
+        q, v = state
+        return [v, -omega0_sq * q - gamma * v]
+
+    sol = odeint(rhs, [float(q0), float(v0)], t)
+    return sol[:, 0], sol[:, 1]
+
+
+def fit_static_nonlinearity(x_model: np.ndarray, residual: np.ndarray, *, degree: int = 3) -> np.ndarray:
+    """Fit the position residual against the simulated state with a polynomial.
+
+    This is the "static sensor nonlinearity" fit from the original exploratory
+    ``testes.py``: simulate the identified linear model, take the *position*
+    residual ``measured - simulated`` and project it onto powers of the
+    simulated state. The odd terms mix true static nonlinearity with
+    linear-model mismatch (amplitude/phase drift), so read the fit as the
+    residual's static signature, not as a calibration curve. Returns
+    coefficients in ascending order ``[a0, ..., a_degree]``.
+    """
+
+    x_model = np.asarray(x_model, dtype=float)
+    residual = np.asarray(residual, dtype=float)
+    theta = np.column_stack([x_model**k for k in range(degree + 1)])
+    return np.linalg.lstsq(theta, residual, rcond=None)[0]
+
+
 def fit_residual_surface(q: np.ndarray, v: np.ndarray, residual: np.ndarray) -> np.ndarray:
     """Fit ``r ~ c_q2 q^2 + c_q3 q^3 + c_qv q v + c_v2 v^2`` to the residual.
 
