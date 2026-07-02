@@ -59,15 +59,15 @@ full investigation is in [`docs/ORIGINAL_CODE_AUDIT.md`](docs/ORIGINAL_CODE_AUDI
 
 **Hardware & engineering**
 - Modified TCRT5000 reflective optical sensor + Arduino Uno (~1 kHz), raw streaming over serial
-- Typed, modular package · 30 regression tests · ruff lint + format · GitHub Actions CI (3.10 / 3.12)
+- Typed, modular package · 39 regression tests · ruff lint + format · GitHub Actions CI (3.10 / 3.12 + a job with the pysindy/torch extras)
 
 ## Quick start
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e .
-python scripts\run_basic_analysis.py
+python scripts/run_basic_analysis.py
 ```
 
 `pip install -e .` puts `vibration_id` on the path; the scripts also add `src/`
@@ -78,17 +78,17 @@ figures land in `figures/generated/`.
 # tests
 pip install -r requirements-dev.txt && pytest -q
 
-# advanced methods (SINDy / HAVOK / PINN)
+# advanced methods (SINDy / HAVOK / PINN; the PINN demo trains on the inox sample)
 pip install -r requirements-advanced.txt
-python scripts\run_advanced_analysis.py --run-pinn
+python scripts/run_advanced_analysis.py --run-pinn
 
 # reproducible Duffing + sensor identification and the global fit
-python scripts\run_sensor_identification.py
-python scripts\run_global_fit.py
-python scripts\run_sensor_residual.py
+python scripts/run_sensor_identification.py
+python scripts/run_global_fit.py
+python scripts/run_sensor_residual.py
 
 # material study from trial metadata
-python scripts\run_material_study.py
+python scripts/run_material_study.py
 ```
 
 ## Results
