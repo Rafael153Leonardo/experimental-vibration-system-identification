@@ -24,7 +24,12 @@ def state_from_position(
     window_length: int = 81,
     polyorder: int = 3,
 ) -> np.ndarray:
-    """Build [x, v] state from position and a time vector."""
+    """Build [x, v] state from position and a time vector.
+
+    For the savgol method, ``window_length`` must stay well under one
+    oscillation period; a window spanning multiple periods attenuates the
+    velocity and biases any downstream identification strongly low.
+    """
 
     t = np.asarray(t, dtype=float)
     x = np.asarray(x, dtype=float)
@@ -55,9 +60,16 @@ def fit_linear_sindy(
     model = ps.SINDy(
         optimizer=ps.STLSQ(threshold=threshold, alpha=alpha),
         feature_library=ps.PolynomialLibrary(degree=1, include_bias=True),
-        feature_names=["x", "v"],
     )
-    model.fit(trajectories, t=dt, multiple_trajectories=True)
+    # Derivatives are computed here instead of inside pysindy so the fit does
+    # not depend on pysindy's differentiation defaults.
+    derivatives = [np.gradient(traj, dt, axis=0, edge_order=2) for traj in trajectories]
+    try:
+        model.fit(trajectories, t=dt, x_dot=derivatives, feature_names=["x", "v"])
+    except TypeError as exc:
+        # pysindy 1.x keeps feature_names in __init__ and is incompatible with
+        # NumPy >= 2 / current scikit-learn anyway.
+        raise ImportError("fit_linear_sindy requires pysindy>=2 (see requirements-advanced.txt).") from exc
     return model
 
 
