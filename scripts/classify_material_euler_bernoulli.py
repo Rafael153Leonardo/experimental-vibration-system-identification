@@ -27,8 +27,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--csv",
         type=Path,
-        default=ROOT / "data" / "sample" / "sample_vibration_18hz.csv",
-        help="Input CSV used to extract the dominant frequency by FFT.",
+        default=ROOT / "data" / "sample" / "sample_inox_raw_calibrated.csv",
+        help=(
+            "Input CSV used to extract the dominant frequency by FFT. The default is the inox "
+            "ruler sample, the one public sample with fully documented geometry (the 18 Hz "
+            "baseline has none — see data/sample/material_trials.csv)."
+        ),
     )
     parser.add_argument(
         "--frequency-hz",
@@ -47,21 +51,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--thickness-m",
         type=float,
-        default=0.00233,
-        help="Beam thickness in meters.",
+        default=0.00055,
+        help="Beam thickness in meters (default: inox ruler micrometer reading, 0.55 mm).",
     )
     parser.add_argument("--width-m", type=float, default=0.025, help="Beam width in meters.")
     parser.add_argument(
         "--density-kg-m3",
         type=float,
-        default=1050.0,
-        help="Density used for the inverse Young modulus estimate.",
+        default=7850.0,
+        help="Density used for the inverse Young modulus estimate (default: steel).",
     )
     parser.add_argument(
         "--tip-mass-kg",
         type=float,
-        default=0.0,
-        help="Mass attached at the free tip (e.g. a paper target). 0 disables the correction.",
+        default=2.1e-4,
+        help=(
+            "Mass attached at the free tip (default: the inox ruler's paper target, "
+            "0.035 x 0.025 x 0.0003 m at 800 kg/m^3 — see material_trials.csv). 0 disables the correction."
+        ),
     )
     parser.add_argument("--top-n", type=int, default=5, help="Number of material matches to print.")
     parser.add_argument("--no-crop", action="store_true", help="Do not crop from detected onset.")
@@ -99,7 +106,7 @@ def main() -> None:
         tip_mass_kg=args.tip_mass_kg,
     )
     young_matches = rank_materials_by_young(young_pa)
-    frequency_matches = rank_materials_by_frequency(geometry, frequency_hz=frequency_hz)
+    frequency_matches = rank_materials_by_frequency(geometry, frequency_hz=frequency_hz, tip_mass_kg=args.tip_mass_kg)
 
     print("Euler-Bernoulli material classification")
     print(f"source: {source}")
