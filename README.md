@@ -4,62 +4,111 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 
-**From a raw optical-sensor signal to interpretable physics** — a Python pipeline
-that takes vibration measurements off a homemade rig and recovers natural
-frequencies, damping, dynamic models, and even a material's Young modulus. It
-combines classical signal processing, data-driven system identification
-(SINDy / HAVOK / PINN), and physics-based beam modeling.
+**A steel ruler, a $2 optical sensor, an Arduino — and a Young modulus that
+came out 10× too small. This is the story of finding the missing factor.**
 
-I built the bench, adapted the sensor, acquired the data with an Arduino, and
-wrote the full analysis pipeline. This repo is the cleaned, tested, reproducible
-version of that work.
+![Signal to physics](figures/story/cover_signal_to_physics.gif)
 
-| Noisy vs filtered signal | FFT spectrum | Global physical fit |
+I built the bench, adapted the sensor, acquired the data and wrote the full
+Python pipeline — a home replication of a professional lab experiment, to see
+how close a low-cost rig can get to laboratory precision. The pipeline turns a
+raw optical signal into natural frequencies, damping, dynamic models and,
+ultimately, a material's identity.
+
+---
+
+## Act 1 — The rig
+
+A TCRT5000 reflective optical sensor (modified for analog readout) stares at a
+clamped steel ruler; an Arduino Uno streams the raw signal at ~1 kHz over
+serial (`tempo_us,leitura_bruta`). All calibration and modeling happen later
+in Python. The sketch is in [`hardware/arduino/AMM.ino`](hardware/arduino/AMM.ino).
+
+| Experimental rig | Sensor circuit | Sensor alignment |
 | --- | --- | --- |
-| ![Noisy vs filtered signal](figures/main/01_noisy_vs_filtered_signal.png) | ![FFT](figures/main/02_fft.png) | ![Global physical fit](figures/advanced/duffing_global_envelope_fit.png) |
+| ![Experimental rig](figures/setup/acquisition_rig_full.jpeg) | ![Arduino sensor circuit](figures/setup/arduino_sensor_circuit.jpeg) | ![Sensor alignment](figures/setup/sensor_target_alignment.jpeg) |
 
-## Highlight — measuring a steel ruler's Young modulus from how it vibrates
+## Act 2 — The measurement
 
-A stainless-steel ruler in free vibration gave a fundamental of `4.98 Hz`.
-Feeding that into the Euler–Bernoulli cantilever model returned `~18 GPa` — an
-order of magnitude below steel. Instead of fudging the number, I designed a
-**forced-vibration experiment**, driving the same ruler at its first four modes
-(`~5.0 / 31.2 / 86.8 / 173.5 Hz`).
+Pluck the ruler and it rings for 20+ seconds. Wavelet denoising, sub-bin FFT
+interpolation and a 39-run ensemble reduce the fundamental to one very solid
+number: **4.982 Hz, stable to ±0.001 Hz across runs**.
 
-Cantilever modes are *not* integer harmonics — they follow the `beta_n^2` ladder
-(`1 : 6.27 : 17.5 : 34.4`), and that ladder is a fingerprint of the boundary
-condition, independent of the material. The measured ratios matched the ideal
-ladder within **~1%**, which proves the clamp was essentially perfect and rules
-it out as the cause (a soft clamp or a tip mass would push the higher-mode ratios
-*up*, not onto the ideal line). That left geometry: a micrometer read the blade
-at `0.55 mm` (the `1 mm` marking is nominal). With the true thickness, the inverse
-gives `E ≈ 205 GPa` — squarely stainless / carbon steel.
+![The measurement](figures/story/01_measurement.png)
 
-The takeaway, and the reusable code in [`beam_modes.py`](src/vibration_id/beam_modes.py):
-**higher modes let you separate the boundary condition from the material.** The
-full investigation is in [`docs/ORIGINAL_CODE_AUDIT.md`](docs/ORIGINAL_CODE_AUDIT.md).
+## Act 3 — The verdict that couldn't be right
 
-## What's inside
+Feed that frequency into the Euler–Bernoulli cantilever model with the
+ruler's documented geometry and out comes **E ≈ 18 GPa** — an order of
+magnitude below steel, stranded in a region of the chart where *no engineering
+material lives*. The frequency was beyond suspicion. So either the model's
+boundary condition was wrong (a soft clamp reads as a softer material), or the
+geometry was.
 
-**Signal processing & spectral analysis**
-- Windowed FFT with sub-bin parabolic peak interpolation; Welch PSD
-- Wavelets: CWT scalograms, DWT multiresolution energy, wavelet denoising
-- Hilbert-envelope damping fits; physical quality factor `Q = 2*pi*f0/gamma` and a half-power-bandwidth estimator
+## Act 4 — Interrogating the boundary
 
-**Data-driven system identification**
-- SINDy — linear oscillator and free-Duffing models (with a dependency-free STLSQ)
-- HAVOK (Hankel + SVD + regression) and ensemble-SVD reconstruction
-- Physics-Informed Neural Network (PyTorch) with trainable physical parameters
-- 3-stage global Duffing fit: nonlinear envelope → phase calibration → ODE optimization
-- Sensor output map `h(q)` and linear-model residual analysis for the sensor nonlinearity
+Instead of fudging the number, I designed a forced-vibration experiment:
+drive the same ruler at its first four resonances. Cantilever modes are *not*
+integer harmonics — they follow the `βₙ²` ladder (1 : 6.27 : 17.5 : 34.4),
+and that ladder is a fingerprint of the boundary condition, independent of
+the material. A soft clamp or a tip mass would push the higher ratios up, off
+the ideal line.
 
-**Physics-based modeling**
-- Euler–Bernoulli cantilever (forward + inverse) with a Rayleigh tip-mass correction
-- Modal-ladder analysis to separate clamp quality from material modulus
+![The modal ladder](figures/story/02_modal_ladder.png)
 
-**Hardware & engineering**
-- Modified TCRT5000 reflective optical sensor + Arduino Uno (~1 kHz), raw streaming over serial
-- Typed, modular package · 40 regression tests · ruff lint + format · GitHub Actions CI (3.10 / 3.12 + a job with the pysindy/torch extras)
+The measured ratios sit on the ideal ladder to within ~1%. **The clamp walks
+free** — which leaves the geometry as the only suspect.
+
+## Act 5 — The missing 10×
+
+A micrometer settled it: the blade measures **0.55 mm**, not the nominal
+1 mm-class thickness that had been assumed. Since `E ∝ 1/h²`, that alone is
+the missing order of magnitude. With the true thickness:
+
+![The verdict](figures/story/03_verdict.png)
+
+**E = 205.3 ± 5.3 GPa — squarely stainless/carbon steel.** The uncertainty
+budget makes the lesson explicit: thickness contributes ±1.8%, length ±1.3%,
+density ±1.3% — and the frequency only ±0.2%. *The $2 sensor was never the
+limitation; the ruler's metrology was.* The reusable diagnostic lives in
+[`beam_modes.py`](src/vibration_id/beam_modes.py); the full investigation is
+in [`docs/ORIGINAL_CODE_AUDIT.md`](docs/ORIGINAL_CODE_AUDIT.md).
+
+---
+
+## Beyond the headline
+
+The same records feed a full identification toolbox:
+
+| Sensor nonlinearity | HAVOK reconstruction | PINN inverse problem |
+| --- | --- | --- |
+| ![Sensor nonlinearity](figures/sensor/sensor_nonlinearity_fit.png) | ![HAVOK](figures/advanced/havok_reconstruction.png) | ![PINN](figures/advanced/pinn_inverse_problem.png) |
+
+**Signal processing & spectral analysis** — windowed FFT with sub-bin
+parabolic interpolation; Welch PSD; wavelets (CWT scalograms, DWT energy,
+denoising); Hilbert-envelope damping with the physical quality factor
+`Q = 2πf₀/γ` and a half-power estimator.
+
+**Data-driven system identification** — SINDy (linear and free-Duffing, with
+a dependency-free STLSQ); HAVOK (Hankel + SVD + regression); a two-stage
+physics-informed neural network (PyTorch) with trainable physical parameters;
+a 3-stage global Duffing fit; and a sensor output map / residual analysis
+that separates mechanical dynamics from the sensor's static nonlinearity.
+
+**Physics-based modeling** — Euler–Bernoulli cantilever (forward + inverse)
+with a Rayleigh tip-mass correction and the modal-ladder clamp diagnostic.
+
+**Engineering** — typed modular package · 40 regression tests · ruff lint +
+format · GitHub Actions CI (3.10 / 3.12 + a job with the pysindy/torch extras).
+
+## Results
+
+| Context | Frequency | Geometry | Young modulus | Verdict |
+| --- | ---: | --- | ---: | --- |
+| Plastic ruler | `7.060 Hz` | `L=0.300 m, h=2.33 mm` | `2.99 GPa` | acrylic / PVC / polystyrene range |
+| Inox ruler (raw) | `4.982 Hz` | `L=0.300 m, h=0.55 mm` | `205.3 ± 5.3 GPa` | **stainless / carbon steel** (190–210 GPa) |
+| Inox ruler (synchronized) | `4.982 Hz` | `L=0.300 m, h=0.55 mm` | `205.3 GPa` | reproduces the raw inox result |
+| 18 Hz baseline | `18.737 Hz` | not documented | n/a | signal-analysis validation only |
 
 ## Quick start
 
@@ -89,43 +138,13 @@ python scripts/run_sensor_residual.py
 
 # material study from trial metadata
 python scripts/run_material_study.py
+
+# the story figures and the cover GIF above
+python scripts/make_story_figures.py
+python scripts/make_cover_gif.py
 ```
 
-## Results
-
-| Context | Frequency | Geometry | Young modulus | Verdict |
-| --- | ---: | --- | ---: | --- |
-| Plastic ruler | `7.060 Hz` | `L=0.300 m, h=2.33 mm` | `2.99 GPa` | acrylic / PVC / polystyrene range |
-| Inox ruler (raw) | `4.982 Hz` | `L=0.300 m, h=0.55 mm` | `205.3 GPa` | **stainless / carbon steel** (190–210 GPa) |
-| Inox ruler (synchronized) | `4.982 Hz` | `L=0.300 m, h=0.55 mm` | `205.3 GPa` | reproduces the raw inox result |
-| 18 Hz baseline | `18.737 Hz` | not documented | n/a | signal-analysis validation only |
-
-| Sensor nonlinearity | HAVOK reconstruction | PINN inverse problem |
-| --- | --- | --- |
-| ![Sensor nonlinearity](figures/sensor/sensor_nonlinearity_fit.png) | ![HAVOK](figures/advanced/havok_reconstruction.png) | ![PINN](figures/advanced/pinn_inverse_problem.png) |
-
-## Hardware and acquisition
-
-Measurements were acquired with a modified TCRT5000 reflective optical sensor on
-an Arduino Uno, sampling the raw analog signal at `~1000 Hz` and streaming
-`tempo_us,leitura_bruta` over serial; all calibration and modeling happen later
-in Python. The Arduino sketch is in [`hardware/arduino/AMM.ino`](hardware/arduino/AMM.ino).
-
-| Experimental rig | Sensor circuit | Sensor alignment |
-| --- | --- | --- |
-| ![Experimental rig](figures/setup/acquisition_rig_full.jpeg) | ![Arduino sensor circuit](figures/setup/arduino_sensor_circuit.jpeg) | ![Sensor alignment](figures/setup/sensor_target_alignment.jpeg) |
-
-## Baseline pipeline
-
-1. Load a CSV and normalize columns to `time_s` and `signal`.
-2. Remove the DC offset and crop to the vibration onset.
-3. Wavelet-denoise.
-4. Estimate the dominant frequency (windowed FFT, sub-bin interpolation).
-5. Fit the Hilbert envelope and damping; compute the quality factor.
-6. Generate a CWT scalogram.
-7. Estimate the material class with the Euler–Bernoulli model.
-
-The loader accepts the project's CSV variants
+The CSV loader accepts the project's format variants
 (`tempo_us,posicao_mm` · `tempo_s,posicao_mm_cent` · `tempo_corrigido,volt` ·
 `Second,Volt`) and normalizes everything to `time_s,signal`.
 
