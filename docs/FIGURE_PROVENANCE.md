@@ -56,6 +56,14 @@ files remain the historical reference.
 | `sensor_response_surface_slice.png` | `completo.py` / `model.py` | — | **yes** — `run_sensor_residual.py` (regenerated 2026-07) |
 | `sensor_residual_projection(_3d).png` | SVD projections of the residual | — | 🟡 variation (same residual, different projection) |
 
+## `figures/story/` — narrative figures (July 2026)
+
+| Figure | Source |
+| --- | --- |
+| `01_measurement.png`, `cover_signal_to_physics.gif` | generated from `data/sample/sample_inox_raw_calibrated.csv` by `scripts/make_story_figures.py` / `scripts/make_cover_gif.py` |
+| `02_modal_ladder.png` | ideal ladder from `beam_modes.py`; measured forced-mode frequencies as documented in `ORIGINAL_CODE_AUDIT.md` (raw forced dataset is not public) |
+| `03_verdict.png` | README results + the uncertainty budget (E ∝ ρL⁴f²/h²; ±2.6% total, thickness-dominated) |
+
 ## `figures/setup/` — photos
 
 | Figure | Origin |
