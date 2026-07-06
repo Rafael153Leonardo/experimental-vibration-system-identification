@@ -5,8 +5,10 @@ Each figure is one act of the steel-ruler detective story:
 01 - the measurement: the inox free decay and its 4.982 Hz spectral line
 02 - the alibi check: measured forced-mode ratios vs the ideal cantilever
      ladder (the boundary-condition fingerprint that exonerated the clamp)
-03 - the verdict: the Young-modulus estimate before and after the micrometer,
-     against the material ranges
+03 - the verdict: the Young-modulus ladder as the assumed thickness improves
+     (documented 1.5 mm -> edge photo 1.0 mm -> micrometer 0.55 mm), against
+     the material ranges; every value is recomputed here with the pipeline's
+     own inverse model
 
 The forced-mode frequencies in figure 02 are the measured values documented in
 docs/ORIGINAL_CODE_AUDIT.md (the raw forced-vibration dataset is not part of
@@ -28,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from vibration_id.beam_modes import CANTILEVER_BETA_L
+from vibration_id.materials import BeamGeometry, young_modulus_from_frequency
 from vibration_id.pipeline import load_clean_signal
 from vibration_id.spectral import compute_fft, dominant_frequency
 
@@ -36,10 +39,27 @@ STORY = ROOT / "figures" / "story"
 # Measured forced-resonance frequencies (docs/ORIGINAL_CODE_AUDIT.md)
 FORCED_MODES_HZ = [5.01, 31.2, 86.8, 173.5]
 
-# Young-modulus story numbers (README results + uncertainty budget:
-# E ~ rho L^4 f^2 / h^2; thickness and length dominate at ~2.6% total)
-E_WRONG_GPA = 18.0  # with the thickness documented at the time (1.5 mm)
-E_RIGHT_GPA = 205.3  # with the micrometer thickness (0.55 mm)
+# Young-modulus ladder, recomputed with the pipeline's inverse model so the
+# figure always matches what the code reproduces. Fixed inputs: f1 = 4.982 Hz,
+# L = 0.300 m, b = 25 mm, rho = 7850 kg/m^3, 0.21 g paper tip target. Only the
+# assumed thickness changes across the story.
+F1_HZ = 4.982
+DENSITY_KG_M3 = 7850.0
+TIP_MASS_KG = 2.1e-4
+
+
+def _young_modulus_gpa(thickness_mm: float) -> float:
+    geometry = BeamGeometry(length_m=0.300, thickness_m=thickness_mm * 1e-3, width_m=0.025)
+    modulus = young_modulus_from_frequency(
+        geometry, frequency_hz=F1_HZ, density_kg_m3=DENSITY_KG_M3, tip_mass_kg=TIP_MASS_KG
+    )
+    return modulus / 1e9
+
+
+E_WRONG_GPA = _young_modulus_gpa(1.5)  # documented thickness -> ~27 GPa
+E_TRAP_GPA = _young_modulus_gpa(1.0)  # edge-photo thickness -> ~61 GPa, "looks like aluminum"
+E_RIGHT_GPA = _young_modulus_gpa(0.55)  # micrometer thickness -> ~205 GPa
+# Uncertainty budget on the final value (~2.6%, thickness/length dominated)
 E_UNCERTAINTY_GPA = 5.3
 MATERIAL_BANDS = [
     ("Acrylic / polystyrene", 2.7, 3.5),
@@ -141,7 +161,7 @@ def fig_03_verdict() -> None:
         color="tab:green",
         markersize=9,
         capsize=5,
-        label=f"measured thickness 0.55 mm: {E_RIGHT_GPA:.1f} ± {E_UNCERTAINTY_GPA:.1f} GPa",
+        label=f"micrometer thickness 0.55 mm: {E_RIGHT_GPA:.1f} ± {E_UNCERTAINTY_GPA:.1f} GPa",
     )
     ax.plot(
         [E_WRONG_GPA],
@@ -149,15 +169,31 @@ def fig_03_verdict() -> None:
         "X",
         color="crimson",
         markersize=12,
-        label=f"documented thickness: {E_WRONG_GPA:.0f} GPa — no material lives here",
+        label=f"documented thickness 1.5 mm: {E_WRONG_GPA:.0f} GPa — no material lives here",
+    )
+    ax.plot(
+        [E_TRAP_GPA],
+        [1.0],
+        "X",
+        color="darkorange",
+        markersize=12,
+        label=f"edge-photo thickness 1.0 mm: {E_TRAP_GPA:.0f} GPa — looks like aluminum",
     )
     ax.annotate(
-        "E ∝ 1/h²: the missing 10×\nwas hiding in the thickness",
+        "E ∝ 1/h²: the missing factor of 7.6\nwas hiding in the thickness",
         xy=(E_WRONG_GPA, 1.0),
-        xytext=(6.5, 1.30),
+        xytext=(4.0, 1.30),
         arrowprops={"arrowstyle": "->", "color": "crimson"},
         fontsize=10,
         color="crimson",
+    )
+    ax.annotate(
+        "the trap: just below aluminum —\nplausible, and wrong",
+        xy=(E_TRAP_GPA, 0.97),
+        xytext=(28.0, 0.70),
+        arrowprops={"arrowstyle": "->", "color": "darkorange"},
+        fontsize=10,
+        color="darkorange",
     )
     ax.set_xscale("log")
     ax.set_xlim(2, 300)

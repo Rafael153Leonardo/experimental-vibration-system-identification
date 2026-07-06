@@ -55,22 +55,28 @@ paper_width_m = 0.025
 paper_thickness_m = 0.0003
 ```
 
-For the public material-study metadata, the inox rows use the effective model
-values recalled from the experiment:
+The public material-study metadata now records the final, micrometer-verified
+geometry for the inox rows:
 
 ```text
-length_m = 0.270
-width_m = 0.020
-thickness_m = 0.00150
+length_m = 0.300
+width_m = 0.025
+thickness_m = 0.00055   # micrometer reading; the "1 mm" marking is nominal
 density_kg_m3 = 7850
 ```
 
-With the current public inox samples, FFT extraction gives approximately
-`4.976 Hz`. Using the effective dimensions above, the inverse Euler-Bernoulli
-calculation estimates an effective Young modulus near `17.6 GPa`. This value is
-far below the nominal modulus of stainless steel, so the result should be
-discussed as an effective stiffness estimate unless the tip attachment, clamp
-compliance, free length and active vibration mode are modeled explicitly.
+With this geometry and the ensemble frequency (`4.982 Hz`), the inverse
+Euler-Bernoulli calculation gives `E = 205.3 GPa`, inside the stainless/carbon
+steel range.
+
+**Historical note (provenance of the old 17.6 GPa figure):** the original
+exploratory analysis used effective values recalled from the experiment —
+`length_m = 0.270`, `width_m = 0.020`, `thickness_m = 0.00150`, `f ≈ 4.976 Hz`,
+no tip-mass correction — which yield `E ≈ 17.6 GPa`. That number is **not**
+reproducible with the current pipeline defaults: with the corrected length
+(`0.300 m`) the same wrong thickness gives `≈ 27 GPa`, and the edge-photo
+thickness (`1.0 mm`) gives `≈ 61 GPa`. See `docs/ORIGINAL_CODE_AUDIT.md` for
+the full course correction (forced-mode clamp check + micrometer).
 
 The public metadata table is:
 
