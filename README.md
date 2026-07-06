@@ -95,6 +95,31 @@ physics-informed neural network (PyTorch) with trainable physical parameters;
 a 3-stage global Duffing fit; and a sensor output map / residual analysis
 that separates mechanical dynamics from the sensor's static nonlinearity.
 
+**Where the nonlinearity lives** — reading the instantaneous frequency and
+amplitude off the ring-down settles what the model fits only hint at: the
+*backbone curve is flat* (the frequency moves less than 1% across a threefold
+amplitude decay, so the cubic stiffness term is a sensor-map artifact, not beam
+physics), while the *envelope prefers amplitude-dependent damping* over a single
+exponential (R² ≈ 0.95 → 0.998, Q ≈ 120). Linear stiffness, nonlinear
+dissipation — reproducible with
+[`run_backbone_damping.py`](scripts/run_backbone_damping.py).
+
+**Digital twin** — the identified pieces compose into one end-to-end forward
+model: physical parameters → Euler–Bernoulli modal frequencies → nonlinear-damped
+oscillator → cubic sensor map → the signal you'd measure. Seeded with the
+identified parameters it reproduces the real ruler — the synthetic ring-down, run
+through the same pipeline, recovers **f₀ = 4.982 Hz to four digits**, the quality
+factor, the βₙ² modal ladder and the steel verdict — then runs virtual
+experiments: pluck, forced resonance sweep, geometry/material what-if, and
+tip-mass sensing.
+
+![Digital twin](figures/advanced/digital_twin.png)
+
+There's a no-build [interactive version](interactive/digital_twin.html): drag
+`E`, `L`, `h`, tip mass, `Q` and the drive frequency and watch the signal,
+spectrum, resonance sweep and material verdict update live. Reproduce the figure
+with [`run_digital_twin.py`](scripts/run_digital_twin.py).
+
 **Physics-based modeling** — Euler–Bernoulli cantilever (forward + inverse)
 with a Rayleigh tip-mass correction and the modal-ladder clamp diagnostic.
 
@@ -135,6 +160,13 @@ python scripts/run_advanced_analysis.py --run-pinn
 python scripts/run_sensor_identification.py
 python scripts/run_global_fit.py
 python scripts/run_sensor_residual.py
+
+# where the nonlinearity lives: flat backbone (linear stiffness) + nonlinear damping
+python scripts/run_backbone_damping.py
+
+# digital twin: validated forward model + virtual experiments
+# (interactive version: open interactive/digital_twin.html in a browser)
+python scripts/run_digital_twin.py
 
 # material study from trial metadata
 python scripts/run_material_study.py

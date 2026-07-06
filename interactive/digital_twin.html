@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ruler vibration — interactive digital twin</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1d212b; --line: #2a2f3a;
+    --text: #e7e9ee; --muted: #9aa3b2; --accent: #e2564a; --blue: #4f8fe0;
+    --green: #63b06b; --purple: #9b7fe0; --steel: #6ec1a8;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5; padding: 24px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; max-width: 720px; }
+  .grid { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  .ctrl { margin-bottom: 14px; }
+  .ctrl label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .ctrl label b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .modes { display: flex; gap: 8px; margin-bottom: 14px; }
+  .modes button {
+    flex: 1; background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 8px; font-size: 13px; cursor: pointer;
+  }
+  .modes button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+  .card { background: var(--panel2); border-radius: var(--radius); padding: 10px 12px; }
+  .card .k { font-size: 12px; color: var(--muted); }
+  .card .v { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .verdict { grid-column: span 2; display: flex; align-items: center; gap: 10px; }
+  .pill { font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+  .plots { display: grid; grid-template-rows: auto auto; gap: 14px; }
+  .plot h3 { font-size: 14px; font-weight: 500; margin: 0 0 8px; color: var(--muted); }
+  canvas { width: 100%; display: block; background: var(--panel2); border-radius: var(--radius); }
+  .ladder { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .ladder b { color: var(--text); }
+  .foot { color: var(--muted); font-size: 12px; margin-top: 16px; }
+  .foot code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ruler vibration — interactive digital twin</h1>
+  <p class="sub">A clamped steel ruler read by a $2 optical sensor, as a live forward model:
+    physical parameters &rarr; Euler&ndash;Bernoulli modal frequencies &rarr; a nonlinear-damped
+    oscillator &rarr; the sensor's cubic response &rarr; the signal you'd measure. Drag the sliders
+    to run virtual experiments; the twin is calibrated to the real 4.982&nbsp;Hz inox record.</p>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="modes">
+        <button id="mode-free" class="on">Free decay</button>
+        <button id="mode-forced">Forced sweep</button>
+      </div>
+
+      <div class="ctrl"><label>Young modulus <span></span><b id="E-v"></b></label>
+        <input type="range" id="E" min="1" max="260" step="0.1" value="205.3"></div>
+      <div class="ctrl"><label>Free length L <b id="L-v"></b></label>
+        <input type="range" id="L" min="150" max="450" step="1" value="300"></div>
+      <div class="ctrl"><label>Thickness h <b id="h-v"></b></label>
+        <input type="range" id="h" min="0.3" max="1.6" step="0.01" value="0.55"></div>
+      <div class="ctrl"><label>Tip mass (added) <b id="m-v"></b></label>
+        <input type="range" id="m" min="0" max="2" step="0.05" value="0"></div>
+      <div class="ctrl"><label>Quality factor Q <b id="Q-v"></b></label>
+        <input type="range" id="Q" min="20" max="400" step="5" value="110"></div>
+      <div class="ctrl" id="drive-wrap"><label>Drive frequency <b id="fd-v"></b></label>
+        <input type="range" id="fd" min="2" max="200" step="0.1" value="31.2"></div>
+
+      <div class="cards">
+        <div class="card"><div class="k">Fundamental f&#8321;</div><div class="v" id="f1"></div></div>
+        <div class="card"><div class="k">Apparent E</div><div class="v" id="Eapp"></div></div>
+        <div class="card verdict">
+          <span class="pill" id="verdict-pill"></span>
+          <span id="verdict-txt" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+      </div>
+      <div class="ladder">Modal ladder (&beta;&#8345;&sup2;): <b id="ladder"></b> Hz</div>
+    </div>
+
+    <div class="plots">
+      <div class="plot"><h3 id="sig-title">Sensor signal</h3><canvas id="sig" height="220"></canvas></div>
+      <div class="plot"><h3 id="spec-title">Spectrum</h3><canvas id="spec" height="220"></canvas></div>
+    </div>
+  </div>
+
+  <p class="foot">Physics ported from <code>src/vibration_id/digital_twin.py</code> (Euler&ndash;Bernoulli
+    modal model + nonlinear damping + cubic sensor map). Same model, same defaults; validated against the
+    real record in <code>scripts/run_digital_twin.py</code>.</p>
+</div>
+
+<script>
+const BETA_L = [1.875104, 4.694091, 7.854757, 10.995541];
+const BEAM = 1.87510407, RAYLEIGH = 0.2427;
+const RHO = 7850, B = 0.025, CUBIC = 3e-4;
+const MATERIALS = [
+  ["Polyethylene",0.2,0.7],["Polypropylene",1.3,1.8],["ABS",1.8,2.4],["PVC",2.4,4.0],
+  ["Acrylic (PMMA)",2.7,3.5],["Polystyrene",3.0,3.5],["Aluminum",68,72],
+  ["Stainless steel",190,210],["Carbon steel",190,210]
+];
+
+function fundamental(E_GPa, L_mm, h_mm, mtip_g) {
+  const E = E_GPa*1e9, L = L_mm/1000, h = h_mm/1000, mtip = mtip_g/1000 + 0.21e-3;
+  const A = B*h, I = B*h*h*h/12;
+  const k = 3*E*I/(L*L*L), meff = RAYLEIGH*RHO*A*L + mtip;
+  return Math.sqrt(k/meff)/(2*Math.PI);
+}
+function youngFromFreq(f, L_mm, h_mm, mtip_g) {
+  const L = L_mm/1000, h = h_mm/1000, mtip = mtip_g/1000 + 0.21e-3;
+  const A = B*h, I = B*h*h*h/12, meff = RAYLEIGH*RHO*A*L + mtip;
+  const k = (2*Math.PI*f)**2 * meff;
+  return k*L*L*L/(3*I) / 1e9;
+}
+function modes(f1) { return BETA_L.map(b => f1*(b/BETA_L[0])**2); }
+function verdict(E_GPa) {
+  let best = null, bd = Infinity;
+  for (const [n,lo,hi] of MATERIALS) {
+    const d = (E_GPa>=lo && E_GPa<=hi) ? 0 : Math.min(Math.abs(E_GPa-lo), Math.abs(E_GPa-hi));
+    if (d < bd) { bd = d; best = n; }
+  }
+  return best;
+}
+
+function fft(re, im) {
+  const n = re.length;
+  for (let i=1,j=0;i<n;i++){ let bit=n>>1; for(;j&bit;bit>>=1) j^=bit; j^=bit;
+    if(i<j){ [re[i],re[j]]=[re[j],re[i]]; [im[i],im[j]]=[im[j],im[i]]; } }
+  for (let len=2; len<=n; len<<=1) {
+    const ang = -2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for (let i=0;i<n;i+=len) {
+      let cr=1, ci=0;
+      for (let k=0;k<len/2;k++) {
+        const ur=re[i+k], ui=im[i+k];
+        const vr=re[i+k+len/2]*cr - im[i+k+len/2]*ci;
+        const vi=re[i+k+len/2]*ci + im[i+k+len/2]*cr;
+        re[i+k]=ur+vr; im[i+k]=ui+vi; re[i+k+len/2]=ur-vr; im[i+k+len/2]=ui-vi;
+        const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr;
+      }
+    }
+  }
+}
+
+const params = () => ({
+  E:+E.value, L:+L.value, h:+h.value, m:+m.value, Q:+Q.value, fd:+fd.value,
+  mode: document.getElementById('mode-forced').classList.contains('on') ? 'forced':'free'
+});
+
+function frfMag(f, ms, gamma) {
+  const w = 2*Math.PI*f; let hr=0, hi=0;
+  for (const fn of ms) { const wn=2*Math.PI*fn, den_r=wn*wn-w*w, den_i=gamma*w;
+    const d=den_r*den_r+den_i*den_i; hr+=den_r/d; hi+=-den_i/d; }
+  return Math.hypot(hr, hi);
+}
+
+function drawPlot(id, xs, ys, opts) {
+  const c = document.getElementById(id), dpr = window.devicePixelRatio||1;
+  const W = c.clientWidth, H = c.height;
+  c.width = W*dpr; c.style.height = H+'px'; const g = c.getContext('2d');
+  g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const pl=42, pr=12, pt=10, pb=26;
+  const xmin=opts.xmin, xmax=opts.xmax;
+  let ymin=opts.ymin, ymax=opts.ymax;
+  if (ymin===undefined){ ymin=Math.min(...ys); ymax=Math.max(...ys);
+    const pad=(ymax-ymin)*0.1||1; ymin-=pad; ymax+=pad; }
+  const X = x => pl + (x-xmin)/(xmax-xmin)*(W-pl-pr);
+  const Y = y => H-pb - (y-ymin)/(ymax-ymin)*(H-pt-pb);
+  g.strokeStyle='#2a2f3a'; g.fillStyle='#9aa3b2'; g.font='11px sans-serif'; g.lineWidth=1;
+  for (let i=0;i<=4;i++){ const xv=xmin+(xmax-xmin)*i/4; g.beginPath(); g.moveTo(X(xv),pt); g.lineTo(X(xv),H-pb); g.stroke();
+    g.textAlign='center'; g.fillText(opts.xfmt?opts.xfmt(xv):xv.toFixed(0), X(xv), H-8); }
+  if (opts.markers) for (const mk of opts.markers){ g.strokeStyle='#4a5164'; g.setLineDash([3,3]);
+    g.beginPath(); g.moveTo(X(mk),pt); g.lineTo(X(mk),H-pb); g.stroke(); g.setLineDash([]); }
+  g.strokeStyle=opts.color||'#e2564a'; g.lineWidth=1.6; g.beginPath();
+  for (let i=0;i<xs.length;i++){ const px=X(xs[i]), py=Y(ys[i]); i?g.lineTo(px,py):g.moveTo(px,py); }
+  g.stroke();
+  if (opts.overlay){ g.strokeStyle=opts.overlay.color; g.lineWidth=1.2; g.beginPath();
+    for (let i=0;i<opts.overlay.xs.length;i++){ const px=X(opts.overlay.xs[i]), py=Y(opts.overlay.ys[i]); i?g.lineTo(px,py):g.moveTo(px,py); }
+    g.stroke(); }
+}
+
+function render() {
+  const p = params();
+  document.getElementById('E-v').textContent = p.E.toFixed(1)+' GPa';
+  document.getElementById('L-v').textContent = p.L.toFixed(0)+' mm';
+  document.getElementById('h-v').textContent = p.h.toFixed(2)+' mm';
+  document.getElementById('m-v').textContent = p.m.toFixed(2)+' g';
+  document.getElementById('Q-v').textContent = p.Q.toFixed(0);
+  document.getElementById('fd-v').textContent = p.fd.toFixed(1)+' Hz';
+  document.getElementById('drive-wrap').style.opacity = p.mode==='forced' ? 1 : 0.35;
+
+  const f1 = fundamental(p.E, p.L, p.h, p.m);
+  const ms = modes(f1);
+  const Eapp = youngFromFreq(f1, p.L, p.h, p.m);
+  const mat = verdict(Eapp);
+  document.getElementById('f1').textContent = f1.toFixed(3)+' Hz';
+  document.getElementById('Eapp').textContent = Eapp.toFixed(0)+' GPa';
+  document.getElementById('ladder').textContent = ms.map(x=>x.toFixed(1)).join(' : ');
+  const steel = mat.toLowerCase().includes('steel');
+  const pill = document.getElementById('verdict-pill');
+  pill.textContent = mat;
+  pill.style.background = steel ? '#1f3d34' : '#3a2c1f';
+  pill.style.color = steel ? '#6ec1a8' : '#e0a35a';
+  document.getElementById('verdict-txt').textContent = steel ? 'in the steel band (190–210 GPa)' : 'not steel at this geometry';
+
+  const fs = 1000, N = 8192;
+  const t = [], sig = [];
+  const gamma = 2*Math.PI*f1/p.Q;
+  if (p.mode==='free') {
+    document.getElementById('sig-title').textContent = 'Sensor signal — free decay (ring-down)';
+    document.getElementById('spec-title').textContent = 'Spectrum (log) — fundamental + sensor 3rd harmonic';
+    const A0 = 25;
+    for (let i=0;i<N;i++){ const tt=i/fs; const env=A0*Math.exp(-gamma*tt/2);
+      const q=env*Math.cos(2*Math.PI*f1*tt); const y=q+CUBIC*q*q*q; t.push(tt); sig.push(y); }
+    drawPlot('sig', t, sig, {xmin:0, xmax:t[N-1], color:'#e2564a', xfmt:v=>v.toFixed(0)+'s'});
+  } else {
+    document.getElementById('sig-title').textContent = 'Sensor signal — forced steady state';
+    document.getElementById('spec-title').textContent = 'Resonance sweep — the modal ladder';
+    const amp = frfMag(p.fd, ms, gamma) / frfMag(ms[0], ms, gamma) * 25;
+    for (let i=0;i<N;i++){ const tt=i/fs; const q=amp*Math.cos(2*Math.PI*p.fd*tt);
+      const y=q+CUBIC*q*q*q; t.push(tt); sig.push(y); }
+    drawPlot('sig', t.slice(0,600), sig.slice(0,600),
+      {xmin:0, xmax:t[599], color:'#4f8fe0', xfmt:v=>v.toFixed(2)+'s'});
+  }
+
+  if (p.mode==='free') {
+    const re = sig.slice(0,N).slice(), im = new Array(N).fill(0);
+    const win = re.map((v,i)=> v*(0.5-0.5*Math.cos(2*Math.PI*i/(N-1))));
+    fft(win, im);
+    const fx=[], fy=[]; const df=fs/N;
+    for (let i=0;i<N/2;i++){ const fr=i*df; if(fr>40) break; fx.push(fr); fy.push(Math.hypot(win[i],im[i])); }
+    const mx=Math.max(...fy); drawPlot('spec', fx, fy.map(v=>Math.log10(Math.max(v/mx,1e-5))),
+      {xmin:0, xmax:40, ymin:-4, ymax:0.3, color:'#e2564a', xfmt:v=>v.toFixed(0)});
+  } else {
+    const fx=[], fy=[];
+    for (let f=2; f<=200; f+=0.4){ fx.push(f); fy.push(frfMag(f, ms, gamma)); }
+    const mx=Math.max(...fy); const lg = fy.map(v=>Math.max(v/mx, 1e-6));
+    drawPlot('spec', fx, lg.map(v=>Math.log10(v)),
+      {xmin:2, xmax:200, ymin:-6, ymax:0.2, color:'#4f8fe0', markers:ms, xfmt:v=>v.toFixed(0)});
+  }
+}
+
+for (const el of document.querySelectorAll('input[type=range]')) el.addEventListener('input', render);
+document.getElementById('mode-free').addEventListener('click', ()=>{
+  document.getElementById('mode-free').classList.add('on');
+  document.getElementById('mode-forced').classList.remove('on'); render(); });
+document.getElementById('mode-forced').addEventListener('click', ()=>{
+  document.getElementById('mode-forced').classList.add('on');
+  document.getElementById('mode-free').classList.remove('on'); render(); });
+window.addEventListener('resize', render);
+render();
+</script>
+</body>
+</html>

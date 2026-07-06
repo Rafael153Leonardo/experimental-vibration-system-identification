@@ -17,6 +17,8 @@ beam_modes.py         cantilever modal ladder: separate clamp quality from mater
 sindy_model.py        optional SINDy oscillator identification
 nonlinear_id.py       Duffing dynamics + polynomial sensor output map h(q)
 global_fit.py         3-stage global Duffing fit with nonlinear damping
+backbone.py           backbone curve (stiffness linear?) + linear-vs-nonlinear damping law
+digital_twin.py       end-to-end forward model: EB modes + nonlinear damping + sensor map
 sensor_residual.py    linear-model residual analysis for the sensor nonlinearity
 ssa.py                ensemble-SVD reconstruction across repeated experiments
 havok.py              Hankel matrix, SVD and HAVOK identification
@@ -32,6 +34,18 @@ hardware/arduino/AMM.ino   Arduino Uno acquisition sketch
 figures/setup/             acquisition rig and sensor mounting photos
 figures/sensor/            sensor residual, response and phase-space figures
 ```
+
+## Interactive
+
+```text
+interactive/digital_twin.html   client-side digital twin (no build step): drag E, L, h,
+                                 tip mass, Q, drive frequency and watch the signal, spectrum,
+                                 resonance sweep and material verdict update live. The physics
+                                 is a JS port of src/vibration_id/digital_twin.py.
+```
+
+Open it directly in a browser, or serve the repo root (``python -m http.server``)
+and visit ``/interactive/digital_twin.html``.
 
 ## Recommended Notebook Story
 

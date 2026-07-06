@@ -14,7 +14,9 @@ __all__ = [
     "nonlinear_id",
     "ssa",
     "global_fit",
+    "backbone",
     "sensor_residual",
     "beam_modes",
+    "digital_twin",
     "pipeline",
 ]
