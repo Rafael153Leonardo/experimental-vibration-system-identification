@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 
 **A steel ruler, a $2 optical sensor, an Arduino — and a Young modulus that
-came out 10× too small. This is the story of finding the missing factor.**
+came out 7.6× too small. This is the story of finding the missing factor.**
 
 ![Signal to physics](figures/story/cover_signal_to_physics.gif)
 
@@ -39,11 +39,13 @@ number: **4.982 Hz, stable to ±0.001 Hz across runs**.
 ## Act 3 — The verdict that couldn't be right
 
 Feed that frequency into the Euler–Bernoulli cantilever model with the
-ruler's documented geometry and out comes **E ≈ 18 GPa** — an order of
-magnitude below steel, stranded in a region of the chart where *no engineering
-material lives*. The frequency was beyond suspicion. So either the model's
-boundary condition was wrong (a soft clamp reads as a softer material), or the
-geometry was.
+ruler's documented thickness (1.5 mm) and out comes **E ≈ 27 GPa** — a factor
+of 7.6 below steel, stranded in a region of the chart where *no engineering
+material lives*. A photo of the ruler's edge suggested 1.0 mm instead, which
+moves the estimate to **E ≈ 61 GPa** — the more dangerous number, because it
+sits just below aluminum (68–72 GPa) and *looks* plausible. The frequency was
+beyond suspicion. So either the model's boundary condition was wrong (a soft
+clamp reads as a softer material), or the geometry was.
 
 ## Act 4 — Interrogating the boundary
 
@@ -59,11 +61,12 @@ the ideal line.
 The measured ratios sit on the ideal ladder to within ~1%. **The clamp walks
 free** — which leaves the geometry as the only suspect.
 
-## Act 5 — The missing 10×
+## Act 5 — The missing factor of 7.6
 
-A micrometer settled it: the blade measures **0.55 mm**, not the nominal
-1 mm-class thickness that had been assumed. Since `E ∝ 1/h²`, that alone is
-the missing order of magnitude. With the true thickness:
+A micrometer settled it: the blade measures **0.55 mm**, not the 1.5 mm on
+record or the 1.0 mm the photo suggested. Since `E ∝ 1/h²`, correcting the
+thickness multiplies the estimate by 7.6 — the whole missing factor. With the
+true thickness:
 
 ![The verdict](figures/story/03_verdict.png)
 

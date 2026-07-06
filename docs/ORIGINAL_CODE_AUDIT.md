@@ -142,8 +142,12 @@ classification.
 
 **Corrected geometry (ruler photo):** `L=0.300 m`, `h=1.00 mm`, `b=25 mm`. The
 previously documented thickness (`1.5 mm`) was wrong; since `E ∝ 1/h²`, that
-alone inflated the discrepancy. With `h=1 mm`, E rises from `17.6 GPa` to
-`61.4 GPa`.
+alone inflated the discrepancy. Note the original scripts' `17.6 GPa` also
+baked in an effective length `L=0.270 m` (and `b=20 mm`, no tip mass); with the
+corrected `L=0.300 m` the pipeline's inverse model gives `27 GPa` for
+`h=1.5 mm` and `61.4 GPa` for `h=1 mm` — the reproducible ladder quoted by the
+README and the story figures. The historical `17.6 GPa` is kept here only as a
+record of the original analysis.
 
 **Resolution (clamp isolated by a forced experiment):** the same ruler was driven
 at its first 4 modes (`~5.0 / 31.2 / 86.8 / 173.5 Hz`, `Dataset_sensor/forcado`).

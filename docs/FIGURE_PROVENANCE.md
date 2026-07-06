@@ -64,7 +64,7 @@ files remain the historical reference.
 | --- | --- |
 | `01_measurement.png`, `cover_signal_to_physics.gif` | generated from `data/sample/sample_inox_raw_calibrated.csv` by `scripts/make_story_figures.py` / `scripts/make_cover_gif.py` |
 | `02_modal_ladder.png` | ideal ladder from `beam_modes.py`; measured forced-mode frequencies as documented in `ORIGINAL_CODE_AUDIT.md` (raw forced dataset is not public) |
-| `03_verdict.png` | README results + the uncertainty budget (E ∝ ρL⁴f²/h²; ±2.6% total, thickness-dominated) |
+| `03_verdict.png` | Young-modulus ladder recomputed at plot time by `materials.young_modulus_from_frequency` (f₁ = 4.982 Hz, L = 0.300 m, b = 25 mm, ρ = 7850 kg/m³, 0.21 g tip mass; h = 1.5 / 1.0 / 0.55 mm → 27 / 61 / 205.3 GPa) + the uncertainty budget (±2.6% total, thickness-dominated). The 17.6–18 GPa quoted by the original exploratory analysis additionally baked in an effective length L = 0.270 m and is **not** reproduced by the pipeline (see `ORIGINAL_CODE_AUDIT.md`) |
 
 ## `figures/setup/` — photos
 
